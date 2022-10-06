@@ -1,3 +1,3 @@
 module.exports = {
-    publicPath: process.env.VUE_APP_ENV === 'dev' || process.env.VUE_APP_ENV === 'local' ? '/' : '/DIMSWEB'
+    publicPath: process.env.VUE_APP_ENV === 'dev' || process.env.VUE_APP_ENV === 'local' ? '/esun-demo' : '/DIMSWEB'
 }
