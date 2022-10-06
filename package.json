@@ -18,6 +18,7 @@
     "build:sit": "vue-cli-service build --mode sit",
     "build:uat": "vue-cli-service build --mode uat",
     "build:prod": "vue-cli-service build --mode prod",
+    "build:postman": "vue-cli-service build --mode postman",
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
