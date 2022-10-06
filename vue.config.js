@@ -1,3 +1,3 @@
 module.exports = {
-  publicPath: 'esun-demo',
+  publicPath: '/esun-demo',
 };
