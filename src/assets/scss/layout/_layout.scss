@@ -1,0 +1,33 @@
+html {
+   overflow-x: hidden;
+}
+
+body {
+    background: #f0f3f7;
+    font-family: "Arial", "Helvetica", "微軟正黑體", "DFHei", "Microsoft JhengHei", "sans-serif";
+    letter-spacing: 0.06em;
+}
+
+.main-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.page-title {
+    font-size: 22px;
+    font-weight: bold;
+    color: #3c4c5e;
+    margin: 10px 0 15px;
+}
+
+.page-subtitle {
+    font-size: 20px;
+    font-weight: bold;
+    color: #3c4c5e;
+    margin: 10px 0 15px;
+}
+
+.divider{
+    border-top: 5px solid $secondary;
+}

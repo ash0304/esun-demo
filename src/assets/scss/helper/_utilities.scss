@@ -1,0 +1,33 @@
+/*background color*/
+.bg-lightGray { background-color: #e1e1e1 !important;}
+
+/*text-color*/
+.text-lightGray { color: #e1e1e1 !important;}
+
+/*breadcrumb*/
+.breadcrumb-item { color: #979797; }
+
+/*width*/
+.w-fitContent { width: fit-content !important; }
+.w100 {width: 100px !important; }
+.w125 { width: 125px !important; }
+.w180 { width: 180px !important; }
+.w220 { width: 220px !important; }
+.w320 { width: 320px !important; }
+
+/*datatable*/
+.dt__pagination_size_wrapper {
+    margin-left: auto;
+    margin-bottom: 20px;
+}
+
+/*link*/
+.unstyle-link {
+    color: #212529;
+    text-decoration: none;
+    cursor: text;
+    pointer-events: none;
+    &:hover {
+        color: #212529;
+    }
+}

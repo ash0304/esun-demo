@@ -1,0 +1,40 @@
+.calendar-wrapper {
+    border: 0px !important;
+}
+
+.calendar {
+    border-radius: 0.25rem;
+    position: absolute;
+    top: 0px;
+    right: 0px;
+    height: 38px;
+    background: white;
+    pointer-events: none;
+    z-index: 4;
+}
+
+.btn-calendar {
+    height: 100%;
+    padding: 0;
+    line-height: 0px;
+    border: 0px;
+    border-radius: 0.25rem;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.img-calendar {
+    content: url("./../images/ic_white_calendar.svg");
+    width: 22px;
+    height: 22px;
+    margin: 0 7px;
+}
+
+.input-group > .form-control:disabled + .calendar > .btn-secondary {
+    background-color: #cecece;
+}
+
+.input-group.calendar-wrapper:not(.has-validation) > :not(:last-child):not(.dropdown-toggle):not(.dropdown-menu),
+.input-group.calendar-wrapper:not(.has-validation) > .dropdown-toggle:nth-last-child(n + 3) {
+    border-radius: 0.25rem;
+}

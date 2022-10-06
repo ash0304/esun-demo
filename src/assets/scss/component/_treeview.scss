@@ -1,0 +1,33 @@
+.checkbox-wrapper {
+    border-radius: 0;
+    margin: 0 6px 0 0;
+    border: 1px solid $input-border-color;
+    width: 16px;
+    height: 16px;
+    &.checked {
+        background-color: $primary;
+        border-color: $primary;
+
+        &:after {
+            transform: translate(0.15em, 0.2365384615em) rotate(-45deg);
+            border: .13em solid #fff;
+            border-top-style: none;
+            border-right-style: none;
+            width: .6em;
+            height: .3em;
+        }
+    }
+    &.indeterminate {
+        background-color: $primary;
+        border-color: $primary;
+        &:after {
+            transform: translate(.15em,.2365384615em) rotate(0);
+            border: .13em solid #fff;
+            border-top-style: none;
+            border-right-style: none;
+            border-left-style: none;
+            width: .6em;
+            height: .3em;
+        }
+    }
+}

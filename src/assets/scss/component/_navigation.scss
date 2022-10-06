@@ -1,0 +1,89 @@
+.sidenav-container {
+    background: white;
+    z-index: 99;
+    overflow-y: auto;
+    a {
+        text-decoration: none;
+    }
+    ul {
+        list-style: none;
+    }
+}
+.sidenav-menu {
+    padding: 15px 20px 0;
+    li {
+        padding: 12px 0;
+        display: block;
+        .select {
+            color: $primary;
+            font-weight: bold;
+            opacity: 1;
+            border-left: 3px solid $primary;
+        }
+    }
+}
+
+.sidenav-menu li a,
+.sidenav-menu > .sidenav-with-sub {
+    display: block;
+    font-size: 18px;
+    color: $secondary;
+    opacity: 0.9;
+    padding-left: 10px;
+    cursor: pointer;
+}
+.sidenav-menu li a:hover,
+.sidenav-menu .sidenav-with-sub:hover,
+.sidenav-sub-menu li a:hover {
+    opacity: 1;
+    font-weight: bold;
+}
+.sidenav-menu li.select > a,
+.sidenav-sub-menu li.select > a {
+    color: $primary;
+    font-weight: bold;
+    opacity: 1;
+    border-left: 3px solid $primary;
+}
+
+.sidenav-with-sub {
+    display: block;
+    font-size: 18px;
+    color: $secondary;
+    opacity: 0.9;
+    padding-left: 10px;
+    cursor: pointer;
+}
+.sidenav-sub-menu {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: all 0.2s;
+    -moz-transition: all 0.2s;
+    -ms-transition: all 0.2s;
+    -o-transition: all 0.2s;
+    li {
+        a {
+            display: block;
+            font-size: 16px;
+            font-weight: normal;
+        }
+    }
+}
+
+.sidenav-menu .sidenav-with-sub.select {
+    font-weight: bold;
+    opacity: 1;
+    border-top: 1px solid $sidenav-line-color;
+    border-bottom: 1px solid $sidenav-line-color;
+}
+
+.sidenav-with-sub.select .sidenav-sub-menu {
+    margin-top: 12px;
+    max-height: 100%;
+    opacity: 1;
+    transition: all 0.2s;
+    -moz-transition: all 0.2s;
+    -ms-transition: all 0.2s;
+    -o-transition: all 0.2s;
+}

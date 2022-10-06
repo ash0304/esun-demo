@@ -1,0 +1,27 @@
+.vc-chrome-alpha-wrap {
+    display: none;
+}
+.vc-chrome-controls {
+    align-items: center;
+}
+.vc-chrome-hue-wrap {
+    margin-bottom: 0px;
+}
+.vc-chrome-toggle-btn {
+    display: none;
+}
+.vc-editable-input {
+    font-family: $font-family-sans-serif;
+}
+.vc-chrome {
+    position: absolute;
+    top: 35px;
+    left: 0;
+    z-index: 9;
+}
+.color-picker-current {
+    width: 16px;
+    height: 16px;
+    background-color: #000;
+    cursor: pointer;
+}

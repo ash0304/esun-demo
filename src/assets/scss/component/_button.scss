@@ -1,0 +1,92 @@
+/*button style*/
+.btn-primary {
+    color: $primary-text-color;
+    &:hover,
+    .btn-check:focus + &,
+    &:focus,
+    .btn-check:checked + &,
+    .btn-check:active + &,
+    &:active,
+    &.active,
+    .show > &.dropdown-toggle,
+    &:disabled,
+    &.disabled {
+        color: $primary-text-color;
+    }
+}
+
+.btn-outline-primary {
+    color: $primary;
+
+    &:hover,
+    .btn-check:focus + &,
+    &:focus,
+    .btn-check:checked + &,
+    .btn-check:active + &,
+    &:active,
+    &.active,
+    .show > &.dropdown-toggle,
+    &:disabled,
+    &.disabled {
+        color: $primary-text-color;
+    }
+}
+
+.btn-secondary {
+    color: $secondary-text-color;
+
+    &:hover,
+    .btn-check:focus + &,
+    &:focus,
+    .btn-check:checked + &,
+    .btn-check:active + &,
+    &:active,
+    &.active,
+    .show > &.dropdown-toggle,
+    &:disabled,
+    &.disabled {
+        color: $secondary-text-color;
+    }
+}
+
+.btn-outline-secondary {
+    color: $secondary;
+
+    &:hover,
+    .btn-check:focus + &,
+    &:focus,
+    .btn-check:checked + &,
+    .btn-check:active + &,
+    &:active,
+    &.active,
+    .show > &.dropdown-toggle,
+    &:disabled,
+    &.disabled {
+        color: $secondary-text-color;
+    }
+}
+
+/*button size*/
+.btn-xs {
+    height: 35px;
+    line-height: 35px;
+    font-size: 16px;
+}
+
+.btn-sm {
+    height: 40px;
+    line-height: 40px;
+    font-size: 18px;
+}
+
+.btn-md {
+    height: 48px;
+    line-height: 48px;
+    font-size: 20px;
+}
+
+.btn-lg {
+    height: 52px;
+    line-height: 52px;
+    font-size: 24px;
+}

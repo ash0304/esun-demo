@@ -1,0 +1,72 @@
+﻿$primary: #45b29d;
+$primary-text-color: #fff;
+
+$secondary: #3c4c5e;
+$secondary-text-color: #fff;
+
+/*link*/
+$link-decoration: none;
+
+$btn-line-height: 48px;
+$btn-border-radius: 24px;
+$btn-border-radius-sm: 24px;
+$btn-border-radius-lg: 24px;
+
+$btn-font-size: 20px;
+$btn-font-size-sm: 20px;
+$btn-font-size-lg: 20px;
+$btn-font-weight: bold;
+
+$btn-padding-y: 0;
+$btn-padding-x: 15px;
+$btn-padding-y-sm: 0;
+$btn-padding-x-sm: 15px;
+$btn-padding-y-lg: 0;
+$btn-padding-x-lg: 15px;
+
+$breadcrumb-divider: url("./../images/ic_arrow_right.svg");
+$breadcrumb-divider-color: #979797;
+$breadcrumb-active-color: #222;
+
+$form-check-input-border-radius: 0;
+$form-check-input-checked-bg-image: url("./../images/ic_white_check.svg");
+$form-check-input-disabled-opacity: 1;
+$form-check-label-disabled-opacity: 1;
+$form-check-btn-check-disabled-opacity: 1;
+$form-check-input-checked-color: $primary;
+
+$input-border-color: #ced4da;
+
+$modal-header-padding: 0;
+$modal-header-border-width: 0;
+$modal-content-border-radius: 10px;
+$modal-content-border-width: 0;
+$modal-footer-padding: 0;
+$modal-footer-border-width: 0;
+
+$accordion-button-bg:#ecf7f5;
+$accordion-button-color:#3ea08d;
+
+/*navigation*/
+$sidenav-line-color: #cecece;
+
+/*radio*/
+$radio-disabled-border-color: #cecece;
+$radio-disabled-bg-color: #e1e1e1;
+$radio-disabled-checked-border-color: #cecece;
+$radio-disabled-checked-bg-color: #e1e1e1;
+
+/*checkbox*/
+$checkbox-disabled-border-color: #cecece;
+$checkbox-disabled-bg-color: #e1e1e1;
+$checkbox-disabled-checked-border-color: #979797;
+$checkbox-disabled-checked-bg-color: #979797;
+
+/*switch*/
+$switch-default-border-color: #cecece;
+$switch-default-bg-color: #cecece;
+$switch-checked-border-color: $primary;
+$switch-checked-bg-color: $primary;
+
+/*select2*/
+$select2-hover-bg-color: #ededed;
