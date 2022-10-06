@@ -5,6 +5,7 @@
   "author": "Ash",
   "homepage": "https://ash0304.github.io/esun-demo",
   "scripts": {
+    "deploy": "gh-pages -d dist",
     "serve": "vue-cli-service serve",
     "serve:dev": "vue-cli-service serve --mode dev",
     "serve:changingsit": "vue-cli-service serve --mode changingsit",
