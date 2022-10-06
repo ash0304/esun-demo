@@ -4,7 +4,7 @@
       <!-- 動態生成側邊欄 -->
       <template v-for="(item, index) in pageList" :key="index">
         <li
-          v-if="item.isValid"
+          v-if="item.isValid && item.mainName != '權限管理' && item.mainName != '系統管理'"
           class="sidenav-with-sub"
           @click="setActiveBlock(index)"
           :class="{ select: activeBlock == compareMap[index] }"
