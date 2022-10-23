@@ -64,7 +64,11 @@
           <span class="col-sm-2 input-group-text py-2 px-4">應覆核日期</span>
           <div class="col-sm p-3 d-flex align-items-center">
             <div>
-              <Field name="expectedReviewStartDate" v-slot="{ field }" :value="isFlag ? '' : getDate(7)">
+              <Field
+                name="expectedReviewStartDate"
+                v-slot="{ field }"
+                :value="isFlag ? '' : getDate(7)"
+              >
                 <div class="input-group calendar-wrapper w320">
                   <input
                     type="date"
@@ -89,7 +93,11 @@
             </div>
             <div class="mx-3">~</div>
             <div>
-              <Field name="expectedReviewEndDate" v-slot="{ field }" :value="isFlag ? '' : getDate()">
+              <Field
+                name="expectedReviewEndDate"
+                v-slot="{ field }"
+                :value="isFlag ? '' : getDate()"
+              >
                 <div class="input-group calendar-wrapper w320">
                   <input
                     type="date"
@@ -313,156 +321,161 @@ import { generatorCSVname } from '@/utilities/time';
 import { getDate } from '@/utilities/time';
 import store from '@/utilities/store';
 import { doPost } from '@/utilities/api';
+import { onMounted, reactive, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 export default {
   name: 'DailyReviewReport',
   components: { Field, VueGoodTable, JsonCSV, Form, Modal },
-  data() {
-    return {
-      // 是否存在flag
-      isFlag: false,
-      // 第一次搜尋
-      isSearch: false,
-      flag: 801,
-      // 備註彈窗
-      isModalVisible1: false,
-      responseMessage: '',
-      reviewUnit: -2,
-      reviewUnitList: [],
-      reviewUser: -2,
-      reviewUserList: [],
-      expectedReviewStartDate: getDate(7),
-      expectedReviewEndDate: getDate(),
-      actualReviewStartDate: '',
-      actualReviewEndDate: '',
-      reviewStatus: 0,
-      statusTransfer: {
-        0: '未覆核',
-        1: '已覆核',
+  setup() {
+    const route = useRoute();
+    const router = useRouter();
+    // 是否存在flag
+    const isFlag = ref(false);
+    // 第一次搜尋
+    const isSearch = ref(false);
+    const flag = ref(801);
+    // 備註彈窗
+    const isModalVisible1 = ref(false);
+    const responseMessage = ref('');
+    const reviewUnit = ref(-2);
+    const reviewUnitList = ref([]);
+    const reviewUser = ref(-2);
+    const reviewUserList = [];
+    const expectedReviewStartDate = ref(getDate(7));
+    const expectedReviewEndDate = ref(getDate());
+    const actualReviewStartDate = ref('');
+    const actualReviewEndDate = ref('');
+    const reviewStatus = ref(0);
+    const statusTransfer = reactive({
+      0: '未覆核',
+      1: '已覆核',
+    });
+    //  table
+    const paginationOptions = reactive(datatable.paginationOptions);
+    const columns = ref([
+      { field: 'id', hidden: true },
+      {
+        label: '覆核單位',
+        field: 'ReviewUnit',
+        width: '150px',
       },
-      paginationOptions: datatable.paginationOptions,
-      columns: [
-        { field: 'id', hidden: true },
-        {
-          label: '覆核單位',
-          field: 'ReviewUnit',
-          width: '150px',
-        },
-        {
-          label: '批號',
-          field: 'BatchNo',
-          width: '150px',
-        },
-        {
-          label: '應覆核日期',
-          field: 'ExpectedReviewDate',
-          width: '150px',
-        },
-        {
-          label: '實際覆核日期',
-          field: 'ActualReviewDate',
-          width: '150px',
-        },
-        {
-          label: '覆核人員',
-          field: 'ReviewUser',
-          width: '150px',
-        },
-        {
-          label: '點我處理',
-          field: 'AllowReview',
-          width: '150px',
-        },
-        {
-          label: '覆核狀態',
-          field: 'Status',
-          width: '150px',
-        },
-        {
-          label: '備註',
-          field: 'Comment',
-          width: '150px',
-        },
-      ],
-      rows: [],
-      tempRows: [],
-      // csv
-      labels: {},
-      fields: [],
-      totalRecords: 0,
-      userInfo: {}
+      {
+        label: '批號',
+        field: 'BatchNo',
+        width: '150px',
+      },
+      {
+        label: '應覆核日期',
+        field: 'ExpectedReviewDate',
+        width: '150px',
+      },
+      {
+        label: '實際覆核日期',
+        field: 'ActualReviewDate',
+        width: '150px',
+      },
+      {
+        label: '覆核人員',
+        field: 'ReviewUser',
+        width: '150px',
+      },
+      {
+        label: '點我處理',
+        field: 'AllowReview',
+        width: '150px',
+      },
+      {
+        label: '覆核狀態',
+        field: 'Status',
+        width: '150px',
+      },
+      {
+        label: '備註',
+        field: 'Comment',
+        width: '150px',
+      },
+    ]);
+    const rows = ref([]);
+    const tempRows = ref([]);
+    // csv
+    const labels = reactive({});
+    const fields = ref([]);
+    const totalRecords = ref(0);
+    const userInfo = reactive({});
+
+    Object.assign(userInfo, JSON.parse(localStorage.getItem('userInfo')));
+
+    onMounted(() => {
+      getUnitList();
+      getUserList();
+      if (route.query.Flag) {
+        expectedReviewStartDate.value = '';
+        expectedReviewEndDate.value = '';
+        isFlag.value = true;
+        flag.value = parseInt(route.query.Flag);
+        reviewUnit.value = route.query.OperatorUnitId;
+        reviewStatus.value = parseInt(route.query.Status);
+        loadItems();
+      }
+    });
+
+    // methods
+    const onSubmit = () => {
+      loadItems();
     };
-  },
-  created(){
-    this.userInfo = JSON.parse(localStorage.getItem('userInfo'));
-  },
-  mounted() {
-    this.getUnitList();
-    this.getUserList();
-    if (this.$route.query.Flag) {
-      this.expectedReviewStartDate = '';
-      this.expectedReviewEndDate = '';
-      this.isFlag = true;
-      this.flag = parseInt(this.$route.query.Flag);
-      this.reviewUnit = this.$route.query.OperatorUnitId;
-      this.reviewStatus = parseInt(this.$route.query.Status);
-      this.loadItems();
-    }
-  },
-  methods: {
-    generatorCSVname,
-    getDate,
-    onSubmit() {
-      this.loadItems();
-    },
-    clearQuery() {
-      this.reviewUnit = -2;
-      this.reviewUser = -2;
-      this.expectedReviewStartDate = getDate(7);
-      this.expectedReviewEndDate = getDate();
-      this.actualReviewStartDate = '';
-      this.actualReviewEndDate = '';
-      this.reviewStatus = 1;
-      this.rows = [];
-    },
-    getUnitList() {
+
+    const clearQuery = () => {
+      reviewUnit.value = -2;
+      reviewUser.value = -2;
+      expectedReviewStartDate.value = getDate(7);
+      expectedReviewEndDate.value = getDate();
+      actualReviewStartDate.value = '';
+      actualReviewEndDate.value = '';
+      reviewStatus.value = 1;
+      rows.value = [];
+    };
+
+    const getUnitList = () => {
       const passObj = {
-        GlobalUserId: this.userInfo.userId,
+        GlobalUserId: userInfo.userId,
         Flag: 801,
       };
       // 取得單位列表
       doPost('/Common/GetUnitList', passObj).then((response) => {
-        this.reviewUnit = this.userInfo.unitId;
-        this.reviewUnitList = response;
+        reviewUnit.value = userInfo.unitId;
+        reviewUnitList.value = response;
       });
-    },
-    getUserList() {
+    };
+    const getUserList = () => {
       const passObj = {
-        GlobalUserId: this.userInfo.userId,
+        GlobalUserId: userInfo.userId,
         Flag: 801,
       };
       // 取得單位列表
       doPost('/Common/GetUserList', passObj).then((response) => {
-        this.reviewUserList = response;
+        reviewUserList.value = response;
       });
-    },
-    updateParams(newProps) {
+    };
+
+    const updateParams = (newProps) => {
       datatable.updateParams(newProps);
-    },
-    onPageChange(params) {
-      datatable.onPageChange(params, this.loadItems);
-    },
-    onPerPageChange(params) {
-      datatable.onPerPageChange(params, this.loadItems);
-    },
-    onSortChange(params) {
-      datatable.onSortChange(params, this.loadItems);
-    },
+    };
+    const onPageChange = (params) => {
+      datatable.onPageChange(params, loadItems);
+    };
+    const onPerPageChange = (params) => {
+      datatable.onPerPageChange(params, loadItems);
+    };
+    const onSortChange = (params) => {
+      datatable.onSortChange(params, loadItems);
+    };
     // 轉大寫開頭屬性
-    capitalizeFirstLetter(string) {
+    const capitalizeFirstLetter = (string) => {
       return string.charAt(0).toUpperCase() + string.slice(1);
-    },
-    loadItems(params) {
+    };
+
+    const loadItems = (params) => {
       // 這邊組成傳送參數(params + this.form)
       let passObj = {};
       const serverReq = {
@@ -481,19 +494,19 @@ export default {
           Data: {},
         };
       }
-      passObj.Data.GlobalUserId = this.userInfo.userId;
-      passObj.Data.Flag = this.flag;
-      passObj.Data.ReviewUnit = this.reviewUnit;
-      passObj.Data.ReviewUser = this.reviewUser;
-      passObj.Data.ExpectedReviewStartDate = this.expectedReviewStartDate;
-      passObj.Data.ExpectedReviewEndDate = this.expectedReviewEndDate;
-      passObj.Data.ActualReviewStartDate = this.actualReviewStartDate;
-      passObj.Data.ActualReviewEndDate = this.actualReviewEndDate;
-      passObj.Data.ReviewStatus = this.reviewStatus;
-      const expectds = new Date(this.expectedReviewStartDate);
-      const expectde = new Date(this.expectedReviewEndDate);
-      const actualds = new Date(this.actualReviewStartDate);
-      const actualde = new Date(this.actualReviewEndDate);
+      passObj.Data.GlobalUserId = userInfo.userId;
+      passObj.Data.Flag = flag;
+      passObj.Data.ReviewUnit = reviewUnit.value;
+      passObj.Data.ReviewUser = reviewUser.value;
+      passObj.Data.ExpectedReviewStartDate = expectedReviewStartDate.value;
+      passObj.Data.ExpectedReviewEndDate = expectedReviewEndDate.value;
+      passObj.Data.ActualReviewStartDate = actualReviewStartDate.value;
+      passObj.Data.ActualReviewEndDate = actualReviewEndDate.value;
+      passObj.Data.ReviewStatus = reviewStatus.value;
+      const expectds = new Date(expectedReviewStartDate.value);
+      const expectde = new Date(expectedReviewEndDate.value);
+      const actualds = new Date(actualReviewStartDate.value);
+      const actualde = new Date(actualReviewEndDate.value);
       const timeLimit = 30 * 24 * 60 * 60 * 1000;
       if (expectds > expectde) {
         store.dispatch('setGlobalModalMessage', '結束日期不可小於開始日期');
@@ -515,37 +528,34 @@ export default {
         store.dispatch('toggleGlobalModal', true);
         return;
       }
-      this.isSearch = true;
+      isSearch.value = true;
       doPost('/DailyReviewReport/Query', passObj).then((response) => {
-        const { rows, totalRecords } = response;
-        this.rows = [];
+        rows.value = [];
         // 對資料做Object屬性開頭大寫處理
-        rows.forEach((item, index) => {
+        response.rows.forEach((item, index) => {
           const tempObj = {};
           for (const [key, value] of Object.entries(item)) {
             if (key == 'status') {
-              tempObj[this.capitalizeFirstLetter(key)] =
-                this.statusTransfer[value];
+              tempObj[capitalizeFirstLetter(key)] = statusTransfer[value];
             } else {
-              tempObj[this.capitalizeFirstLetter(key)] = value;
+              tempObj[capitalizeFirstLetter(key)] = value;
             }
           }
-          this.rows[index] = tempObj;
-          if (this.rows[index].Comment) {
-            if (this.rows[index].Comment.length >= 20) {
-              this.rows[index].LessComment = `${this.rows[index].Comment.slice(
-                0,
-                20
-              )}...`;
+          rows.value[index] = tempObj;
+          if (rows.value[index].Comment) {
+            if (rows.value[index].Comment.length >= 20) {
+              rows.value[index].LessComment = `${rows.value[
+                index
+              ].Comment.slice(0, 20)}...`;
             }
           }
         });
-        this.totalRecords = totalRecords;
+        totalRecords.value = response.totalRecords;
         // csv隱碼處理
-        this.tempRows = [];
+        tempRows.value = [];
         // deep copy
-        this.tempRows = JSON.parse(JSON.stringify(this.rows));
-        this.tempRows.forEach((item) => {
+        tempRows.value = JSON.parse(JSON.stringify(rows.value));
+        tempRows.value.forEach((item) => {
           const ObjKeys = Object.keys(item);
           ObjKeys.forEach((i, d) => {
             if (ObjKeys[d].includes('User')) {
@@ -562,41 +572,84 @@ export default {
           });
         });
         // csv setting處理
-        this.columns.forEach((item) => {
+        columns.value.forEach((item) => {
           if (item.field == 'Id' || item.field == 'AllowReview') {
             // do nothing
           } else {
-            this.fields.push(item.field);
-            this.labels[item.field] = item.label;
+            fields.value.push(item.field);
+            labels[item.field] = item.label;
           }
         });
       });
-    },
-    handleReview(row) {
+    };
+
+    const handleReview = (row) => {
       localStorage.removeItem('GlobalUserId');
-      localStorage.setItem('GlobalUserId', this.userInfo.userId);
-      const routeData = this.$router.resolve({
+      localStorage.setItem('GlobalUserId', userInfo.userId);
+      const routeData = router.resolve({
         name: 'ReviewPage',
         query: { id: row.Id },
       });
       window.open(routeData.href, '_blank');
-    },
-    handleComment(row) {
-      this.responseMessage = row.Comment;
-      this.showModal1();
-    },
-    showModal1() {
-      this.isModalVisible1 = true;
-    },
-    closeModal1() {
-      this.isModalVisible1 = false;
-    },
-    confirmModal1() {
+    };
+    const handleComment = (row) => {
+      responseMessage.value = row.Comment;
+      showModal1();
+    };
+    const showModal1 = () => {
+      isModalVisible1.value = true;
+    };
+    const closeModal1 = () => {
+      isModalVisible1.value = false;
+    };
+    const confirmModal1 = () => {
       // do something and close
       setTimeout(() => {
-        this.isModalVisible1 = false;
+        isModalVisible1.value = false;
       }, 500);
-    },
+    };
+
+    return {
+      isFlag,
+      isSearch,
+      flag,
+      isModalVisible1,
+      responseMessage,
+      reviewUnit,
+      reviewUnitList,
+      reviewUser,
+      reviewUserList,
+      expectedReviewStartDate,
+      expectedReviewEndDate,
+      actualReviewStartDate,
+      actualReviewEndDate,
+      reviewStatus,
+      statusTransfer,
+      paginationOptions,
+      columns,
+      rows,
+      tempRows,
+      labels,
+      fields,
+      totalRecords,
+      userInfo,
+      generatorCSVname,
+      getDate,
+      onSubmit,
+      clearQuery,
+      getUnitList,
+      getUserList,
+      updateParams,
+      onPageChange,
+      onPerPageChange,
+      onSortChange,
+      capitalizeFirstLetter,
+      handleReview,
+      handleComment,
+      showModal1,
+      closeModal1,
+      confirmModal1,
+    };
   },
 };
 </script>

@@ -161,7 +161,6 @@
               placeholder="請選擇產品別"
               @change="onChangeProductType($event)"
               as="select"
-              :rules="{ required: true }"
             >
               <option value="-2">請選擇</option>
               <option
@@ -172,7 +171,9 @@
                 {{ product.text }}
               </option>
             </Field>
-            <span class="error-msg">{{ errors.productType }}</span>
+            <span v-if="productTypeErrorMsg" class="error-msg">{{
+              productTypeErrorMsg
+            }}</span>
           </div>
         </div>
         <div v-if="isShowSeparator" class="input-group border-bottom-0 row g-0">
@@ -237,85 +238,95 @@ import TreeView from '@/components/TreeView.vue';
 
 import { doPost } from '@/utilities/api';
 import store from '@/utilities/store';
+import { onMounted, reactive, ref } from 'vue';
 
 export default {
   name: 'GenerateQRCode',
   components: { Form, Field, Select2, TreeView },
-  data() {
-    return {
-      PDFsource: '',
-      // tree view 自定義錯誤訊息
-      treeViewMsg: '',
-      documentType: [],
-      // 當前Mode, 判斷消金
-      currentMode: 0,
-      isShowSeparator: false,
-      category: -2,
-      productType: -2,
-      onlySeparator: false,
-      categoryOptions: [],
-      caseIndexList: [],
-      form: [],
-      productTypeOptions: [],
-      pageType: {},
-      // tree view fake date
-      nodes: {},
-      // tree view setting
-      config: {
-        roots: ['-1'],
-        checkboxes: true,
-        checkMode: 0,
-        dragAndDrop: false,
-      },
-      // tree view drag function temp varible
-      targetNodeId: '',
-      tempNodes: '',
-      test: [],
-      userInfo: {}
+  setup() {
+    const PDFsource = ref('');
+    // tree view 自定義錯誤訊息
+    const treeViewMsg = ref('');
+    const documentType = ref([]);
+    const currentMode = ref(0);
+    const isShowSeparator = ref(false);
+    const category = ref(-2);
+    const productType = ref(-2);
+    const onlySeparator = ref(false);
+    const productTypeErrorMsg = ref('');
+    const categoryOptions = ref([]);
+    const caseIndexList = ref([]);
+    const form = ref([]);
+    const productTypeOptions = ref([]);
+    const pageType = reactive({});
+    // tree view fake date
+    const nodes = reactive({});
+    const config = reactive({
+      roots: ['-1'],
+      checkboxes: true,
+      checkMode: 0,
+      dragAndDrop: false,
+    });
+    // tree view drag function temp varible
+    const targetNodeId = ref('');
+    const tempNodes = ref('');
+    const userInfo = reactive({});
+
+    Object.assign(userInfo, JSON.parse(localStorage.getItem('userInfo')));
+
+    onMounted(() => {
+      getCategoryList();
+    });
+
+    const getCategoryList = async () => {
+      const response = await doPost('/Common/GetCategoryList', {
+        Flag: 401,
+        GlobalUserId: userInfo.userId,
+      });
+      categoryOptions.value = response;
     };
-  },
-  created(){
-    this.userInfo = JSON.parse(localStorage.getItem('userInfo'));
-  },
-  mounted() {
-    this.getCategoryList();
-  },
-  methods: {
-    onSubmit() {
+
+    const onSubmit = () => {
+      if (productType.value == -2) {
+        productTypeErrorMsg.value = '請填寫此欄位';
+        return;
+      }
       // 若tree view 存在
-      if (this.isShowSeparator) {
+      if (isShowSeparator.value) {
         // 檢驗tree view是否有填寫
-        let tempNodeArr = Object.values(this.nodes);
+        let tempNodeArr = Object.values(nodes);
         const checkIfEmpty = tempNodeArr.every(
           (item) => item.state.checked === false
         );
         // 清空站存勾選
-        this.documentType = [];
+        documentType.value = [];
         // 取得當前勾選
         tempNodeArr.forEach((item) => {
           if (item.state.checked) {
-            this.documentType.push(item.id);
+            documentType.value.push(item.id);
           }
         });
         if (checkIfEmpty) {
-          this.treeViewMsg = '請填寫此欄位';
+          treeViewMsg.value = '請填寫此欄位';
           return;
         }
+      } else {
+        documentType.value = [];
       }
 
       // 打產製qrcode api
       const passObj = {
         CaseIndexDataList: [],
       };
-      passObj['OnlySeparator'] = this.onlySeparator;
-      passObj['Category'] = this.category;
+      passObj['OnlySeparator'] = onlySeparator.value;
+      passObj['Category'] = category.value;
       // passObj['DocumentType'] = this.documentType;
-      passObj['DocumentType'] = this.documentType.filter(
+      passObj['DocumentType'] = documentType.value.filter(
         (item) => item !== '-1'
       );
 
-      passObj['GlobalUserId'] = this.userInfo.userId;
-      this.form.forEach((item) => {
+      passObj['GlobalUserId'] = userInfo.userId;
+      form.value.forEach((item) => {
         passObj.CaseIndexDataList.push({
           Code: item.code,
           Value: item.fieldType == 4 ? item.value.join() : item.value,
@@ -351,105 +362,105 @@ export default {
           store.dispatch('toggleGlobalModal', true);
         }
       });
-    },
-    generatorRule(index) {
-      if (this.form[index]?.isRequired) {
-        if (Array.isArray(this.form[index]?.value)) {
-          if (!this.form[index]?.value.length) {
+      console.log('hell no', caseIndexList, form);
+    };
+
+    // 測試規則
+    const generatorRule = (index) => {
+      if (form.value[index]?.isRequired) {
+        if (Array.isArray(form.value[index]?.value)) {
+          if (!form.value[index]?.value.length) {
             return '請填寫此欄位';
           }
         } else {
-          if (this.form[index]?.value == '-2' || !this.form[index]?.value) {
+          if (form.value[index]?.value == '-2' || !form.value[index]?.value) {
             return '請填寫此欄位';
           }
         }
       }
-      if (this.form[index]?.regexRule) {
-        if (Array.isArray(this.form[index]?.value)) {
-          if (!this.form[index]?.value.length) {
+      if (form.value[index]?.regexRule) {
+        if (Array.isArray(form.value[index]?.value)) {
+          if (!form.value[index]?.value.length) {
             return true;
           }
         } else {
-          if (this.form[index]?.value == '-2' || !this.form[index]?.value) {
+          if (form.value[index]?.value == '-2' || !form.value[index]?.value) {
             return true;
           }
         }
-        const regex = new RegExp(this.form[index]?.regexRule);
-        if (!regex.test(this.form[index]?.value)) {
+        const regex = new RegExp(form.value[index]?.regexRule);
+        if (!regex.test(form.value[index]?.value)) {
           return '請修改此欄位格式';
         }
       }
       return true;
-    },
+    };
+
     // 文件層勾選事件(清除必填message)
-    nodeChecked() {
-      let tempNodeArr = Object.values(this.nodes);
+    const nodeChecked = () => {
+      let tempNodeArr = Object.values(nodes);
       const checkIfEmpty = tempNodeArr.every(
         (item) => item.state.checked === false
       );
       if (checkIfEmpty) {
-        this.treeViewMsg = '請填寫此欄位';
+        treeViewMsg.value = '請填寫此欄位';
       } else {
-        this.treeViewMsg = '';
+        treeViewMsg.value = '';
       }
-    },
-    // 取得業務類別
-    async getCategoryList() {
-      const response = await doPost('/Common/GetCategoryList', {
-        Flag: 401,
-        GlobalUserId: this.userInfo.userId,
-      });
-      this.categoryOptions = response;
-    },
+    };
+
     // 取得文件層列表
-    async getDocumentTypeList(categoryType) {
+    const getDocumentTypeList = async (categoryType) => {
       const response = await doPost('/Common/GetDocumentTypeList', {
         Category: categoryType,
-        GlobalUserId: this.userInfo.userId,
+        GlobalUserId: userInfo.userId,
       });
       if (response.length > 0) {
         // 設定產品別
-        this.productTypeOptions = response;
+        productTypeOptions.value = response;
         // 非mode 5 或者 6 的無產品別情況(取用第0筆的tree view結構)
-        if (this.currentMode !== 5 && this.currentMode !== 6) {
-          this.isShowSeparator = true;
-          this.nodes = JSON.parse(this.productTypeOptions[0].documentTypeList);
+        if (currentMode.value == 5 || currentMode.value == 6) {
+          isShowSeparator.value = false;
         } else {
-          this.isShowSeparator = false;
+          isShowSeparator.value = true;
+          Object.assign(
+            nodes,
+            JSON.parse(productTypeOptions.value[0].documentTypeList)
+          );
         }
       } else {
-        this.isShowSeparator = false;
+        isShowSeparator.value = false;
       }
-    },
+    };
+
     // 選擇產品別時觸發
-    onChangeProductType(event) {
-      this.isShowSeparator = true;
-      let targetArr = this.productTypeOptions.filter(
+    const onChangeProductType = (event) => {
+      isShowSeparator.value = true;
+      let targetArr = productTypeOptions.value.filter(
         (item) => item.id == event.target.value
       );
       if (targetArr[0].documentTypeList) {
-        this.nodes = JSON.parse(targetArr[0].documentTypeList);
+        Object.assign(nodes, JSON.parse(targetArr[0].documentTypeList));
       }
-    },
-    // 選擇業務類別時觸發
-    onChangeCategory(event) {
-      // 重選選項先清空陣列避免重複欄位
-      this.form = [];
-      // change時進入loading
+    };
 
+    // 選擇業務類別時觸發
+    const onChangeCategory = (event) => {
+      // 重選選項先清空陣列避免重複欄位
+      form.value = [];
       // 判斷是否是消金類別
-      const result = this.categoryOptions.filter(
+      const result = categoryOptions.value.filter(
         (item) => item.id == event.target.value
       );
-      this.currentMode = result[0].mode;
+      currentMode.value = result[0].mode;
       // 根據選擇業務類別撈取索引
       doPost('/Common/GetCaseIndexListByCategory', {
         Category: event.target.value,
-        GlobalUserId: this.userInfo.userId,
+        GlobalUserId: userInfo.userId,
         Flag: 401,
       }).then((response) => {
-        this.caseIndexList = response;
-        this.caseIndexList.forEach((item) => {
+        caseIndexList.value = response;
+        caseIndexList.value.forEach((item) => {
           // 建立暫時存放表
           let formData = {
             ...item,
@@ -461,7 +472,7 @@ export default {
             formData.options = item.dataSource;
             formData.loaded = true;
 
-            let loaded = this.form.every((el) => el.loaded);
+            let loaded = form.value.every((el) => el.loaded);
             if (loaded) {
               //
             }
@@ -471,14 +482,42 @@ export default {
           } else {
             formData.value = item.defaultValue;
           }
-          this.form.push(formData);
+          form.value.push(formData);
           // 替換為主渲染變數
-          this.caseIndexList = this.form;
+          caseIndexList.value = form.value;
           // 如果mode是5或者6時候才打
-          this.getDocumentTypeList(event.target.value);
         });
+        getDocumentTypeList(event.target.value);
       });
-    },
+    };
+
+    return {
+      PDFsource,
+      treeViewMsg,
+      documentType,
+      currentMode,
+      productTypeErrorMsg,
+      isShowSeparator,
+      category,
+      productType,
+      onlySeparator,
+      categoryOptions,
+      caseIndexList,
+      form,
+      productTypeOptions,
+      pageType,
+      nodes,
+      config,
+      targetNodeId,
+      tempNodes,
+      userInfo,
+      onSubmit,
+      generatorRule,
+      nodeChecked,
+      getDocumentTypeList,
+      onChangeProductType,
+      onChangeCategory,
+    };
   },
 };
 </script>

@@ -119,77 +119,79 @@ import { Field } from 'vee-validate';
 import * as datatable from '@/utilities/datatable';
 import { VueGoodTable } from 'vue-good-table-next';
 import Modal from '@/components/Modal.vue';
-
+import { onMounted, reactive, ref } from 'vue';
 import { doPost } from '@/utilities/api';
+import { useRoute } from 'vue-router';
 
 export default {
   name: 'ReviewPage',
   components: { VueGoodTable, Modal, Field },
-  data() {
-    return {
-      isModalVisible1: false,
-      isModalVisible2: false,
-      responseMessage: '',
-      comment: '',
-      reviewStatus: 0,
-      reviewUnitId: 0,
-      columns: [
-        { field: 'CaseId', hidden: true },
-        {
-          label: '單位名稱',
-          field: 'Unit',
-        },
-        {
-          label: '業務類別',
-          field: 'Category',
-        },
-        {
-          label: '交易日',
-          field: 'TraDate',
-        },
-        {
-          label: '案件編號',
-          field: 'CaseNo',
-        },
-        {
-          label: '交易櫃員',
-          field: 'TraUser',
-        },
-        {
-          label: '點我處理',
-          field: 'ClickMe',
-        },
-      ],
-      rows: [],
-      paginationOptions: datatable.paginationOptions,
-      totalRecords: 0,
-      userInfo: {}
-    };
-  },
-  created(){
-    this.userInfo = JSON.parse(localStorage.getItem('userInfo'));
-  },
-  mounted() {
-    this.getQueryDetail();
-    this.getQueryCase();
-  },
-  methods: {
+  setup() {
+    const route = useRoute();
+    const isModalVisible1 = ref(false);
+    const isModalVisible2 = ref(false);
+    const responseMessage = ref('');
+    const comment = ref('');
+    const reviewStatus = ref(0);
+    const reviewUnitId = ref(0);
+    // table
+    const columns = ref([
+      { field: 'CaseId', hidden: true },
+      {
+        label: '單位名稱',
+        field: 'Unit',
+      },
+      {
+        label: '業務類別',
+        field: 'Category',
+      },
+      {
+        label: '交易日',
+        field: 'TraDate',
+      },
+      {
+        label: '案件編號',
+        field: 'CaseNo',
+      },
+      {
+        label: '交易櫃員',
+        field: 'TraUser',
+      },
+      {
+        label: '點我處理',
+        field: 'ClickMe',
+      },
+    ]);
+
+    const rows = ref([]);
+    const paginationOptions = reactive(datatable.paginationOptions);
+    const totalRecords = ref(0);
+    const userInfo = reactive({});
+
+    Object.assign(userInfo, JSON.parse(localStorage.getItem('userInfo')));
+
+    onMounted(() => {
+      getQueryDetail();
+      getQueryCase();
+    });
+
+    // methods
     // 取得覆核單詳細資料
-    getQueryDetail() {
+    const getQueryDetail = () => {
       const passObj = {
         // localstorage
         GlobalUserId: localStorage.getItem('GlobalUserId')
           ? localStorage.getItem('GlobalUserId')
-          : this.userInfo.userId,
-        Id: this.$route.query.id,
+          : userInfo.userId,
+        Id: route.query.id,
       };
       doPost('/DailyReviewReport/QueryDetail', passObj).then((response) => {
-        const { reviewStatus, reviewUnitId } = response;
-        this.reviewStatus = reviewStatus;
-        this.reviewUnitId = reviewUnitId;
+        reviewStatus.value = response.reviewStatus;
+        reviewUnitId.value = response.reviewUnitId;
       });
-    },
-    getQueryCase(params) {
+    };
+
+    const getQueryCase = (params) => {
       let passObj = {};
       const serverReq = {
         sort: { field: '', type: '' },
@@ -210,26 +212,26 @@ export default {
       // localstorage
       passObj.Data.GlobalUserId = localStorage.getItem('GlobalUserId')
         ? localStorage.getItem('GlobalUserId')
-        : this.userInfo.userId;
-      passObj.Data.Id = this.$route.query.id;
+        : userInfo.userId;
+      passObj.Data.Id = route.query.id;
       doPost('/DailyReviewReport/QueryCase', passObj).then((response) => {
-        const { totalRecords, rows } = response;
         // 對資料做Object屬性開頭大寫處理
-        rows.forEach((item, index) => {
+        response.rows.forEach((item, index) => {
           const tempObj = {};
           for (const [key, value] of Object.entries(item)) {
-            tempObj[this.capitalizeFirstLetter(key)] = value;
+            tempObj[capitalizeFirstLetter(key)] = value;
           }
-          this.rows[index] = tempObj;
+          rows.value[index] = tempObj;
         });
-        this.totalRecords = totalRecords;
+        totalRecords.value = response.totalRecords;
       });
-    },
-    handleView(row) {
+    };
+
+    const handleView = (row) => {
       const passObj = {
         Flag: 802,
         CaseIds: [row.CaseId],
-        GlobalUserId: this.userInfo.userId,
+        GlobalUserId: userInfo.userId,
       };
       // do 檢視api
       doPost('/Common/ActiveViewer', passObj).then((response) => {
@@ -237,57 +239,62 @@ export default {
           window.open(response, '_blank');
         }
       });
-    },
-    showModal1() {
-      this.isModalVisible1 = true;
-    },
-    closeModal1() {
-      this.isModalVisible1 = false;
-    },
-    confirmModal1() {
+    };
+    const showModal1 = () => {
+      isModalVisible1.value = true;
+    };
+    const closeModal1 = () => {
+      isModalVisible1.value = false;
+    };
+
+    const confirmModal1 = () => {
       // do something and close
-      this.getQueryDetail();
-      this.getQueryCase();
+      getQueryDetail();
+      getQueryCase();
       setTimeout(() => {
-        this.isModalVisible1 = false;
+        isModalVisible1.value = false;
       }, 500);
-    },
-    showModal2() {
-      this.isModalVisible2 = true;
-    },
-    closeModal2() {
-      this.isModalVisible2 = false;
-    },
-    confirmModal2() {
+    };
+    const showModal2 = () => {
+      isModalVisible2.value = true;
+    };
+    const closeModal2 = () => {
+      isModalVisible2.value = false;
+    };
+
+    const confirmModal2 = () => {
       const passObj = {
-        Id: this.$route.query.id,
-        Comment: this.comment,
+        Id: route.query.id,
+        Comment: comment.value,
         GlobalUserId: localStorage.getItem('GlobalUserId')
           ? localStorage.getItem('GlobalUserId')
-          : this.userInfo.userId,
+          : userInfo.userId,
       };
       doPost('/DailyReviewReport/Review', passObj).then((response) => {
         if (response) {
-          this.responseMessage = `已完成覆核!`;
-          this.showModal1();
+          responseMessage.value = `已完成覆核!`;
+          showModal1();
         }
-        this.isModalVisible2 = false;
+        isModalVisible2.value = false;
       });
-    },
-    onPageChange(params) {
-      datatable.onPageChange(params, this.loadItems);
-    },
-    onPerPageChange(params) {
-      datatable.onPerPageChange(params, this.loadItems);
-    },
-    onSortChange(params) {
-      datatable.onSortChange(params, this.loadItems);
-    },
+    };
+
+    const onPageChange = (params) => {
+      datatable.onPageChange(params, loadItems);
+    };
+    const onPerPageChange = (params) => {
+      datatable.onPerPageChange(params, loadItems);
+    };
+    const onSortChange = (params) => {
+      datatable.onSortChange(params, loadItems);
+    };
+
     // 轉大寫開頭屬性
-    capitalizeFirstLetter(string) {
+    const capitalizeFirstLetter = (string) => {
       return string.charAt(0).toUpperCase() + string.slice(1);
-    },
-    loadItems(params) {
+    };
+
+    const loadItems = (params) => {
       // 這邊組成傳送參數(params + this.form)
       let passObj = {};
       const serverReq = {
@@ -309,22 +316,50 @@ export default {
       // localstorage
       passObj.Data.GlobalUserId = localStorage.getItem('GlobalUserId')
         ? localStorage.getItem('GlobalUserId')
-        : this.userInfo.userId;
-      passObj.Data.Id = this.$route.query.id;
+        : userInfo.userId;
+      passObj.Data.Id = route.query.id;
       doPost('/DailyReviewReport/QueryCase', passObj).then((response) => {
-        const { totalRecords, rows } = response;
-        this.rows = [];
+        rows.value = [];
         // 對資料做Object屬性開頭大寫處理
-        rows.forEach((item, index) => {
+        response.rows.forEach((item, index) => {
           const tempObj = {};
           for (const [key, value] of Object.entries(item)) {
-            tempObj[this.capitalizeFirstLetter(key)] = value;
+            tempObj[capitalizeFirstLetter(key)] = value;
           }
-          this.rows[index] = tempObj;
+          rows.value[index] = tempObj;
         });
-        this.totalRecords = totalRecords;
+        totalRecords.value = response.totalRecords;
       });
-    },
+    };
+
+    return {
+      route,
+      isModalVisible1,
+      isModalVisible2,
+      responseMessage,
+      comment,
+      reviewStatus,
+      reviewUnitId,
+      columns,
+      rows,
+      paginationOptions,
+      totalRecords,
+      userInfo,
+      getQueryDetail,
+      getQueryCase,
+      handleView,
+      showModal1,
+      closeModal1,
+      confirmModal1,
+      showModal2,
+      closeModal2,
+      confirmModal2,
+      onPageChange,
+      onPerPageChange,
+      onSortChange,
+      capitalizeFirstLetter,
+      loadItems,
+    };
   },
 };
 </script>

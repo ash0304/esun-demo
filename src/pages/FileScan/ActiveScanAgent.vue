@@ -186,75 +186,88 @@ import Select2 from 'vue3-select2-component';
 import Modal from '@/components/Modal.vue';
 
 import { doPost } from '@/utilities/api';
+import { ref, reactive, onMounted } from 'vue';
 
 export default {
   name: 'ActiveScanAgent',
   components: { Form, Field, Select2, Modal },
-  data() {
-    return {
-      scanCheck: '系統未偵測到Scan Agent! 請至玉山安裝專區，下載安裝',
-      category: -2,
-      categoryOptions: [],
-      caseIndexList: [],
-      form: [],
-      isModalVisible: false,
-      scanViewerUrl: '',
-      userInfo: {}
+  setup() {
+    const scanCheck = ref('系統未偵測到Scan Agent! 請至玉山安裝專區，下載安裝');
+    const category = ref(-2);
+    const categoryOptions = ref([]);
+    const caseIndexList = ref([]);
+    const form = ref([]);
+    const isModalVisible = ref(false);
+    const scanViewerUrl = ref('');
+    const userInfo = reactive({});
+
+    Object.assign(userInfo, JSON.parse(localStorage.getItem('userInfo')));
+
+    onMounted(() => {
+      getCategoryList();
+    });
+
+    //methods
+
+    // 取得業務類別
+    const getCategoryList = async () => {
+      const response = await doPost('/Common/GetCategoryList', {
+        Flag: 301,
+        GlobalUserId: userInfo.userId,
+      });
+      categoryOptions.value = response;
     };
-  },
-  created(){
-    this.userInfo = JSON.parse(localStorage.getItem('userInfo'));
-  },
-  mounted() {
-    this.getCategoryList();
-  },
-  methods: {
-    errorHandler() {
-      this.showModal();
-    },
-    showModal() {
-      this.isModalVisible = true;
-    },
-    closeModal() {
-      this.isModalVisible = false;
-    },
-    generatorRule(index) {
-      if (this.form[index]?.isRequired) {
-        if (Array.isArray(this.form[index]?.value)) {
-          if (!this.form[index]?.value.length) {
+
+    const errorHandler = () => {
+      showModal();
+    };
+
+    const showModal = () => {
+      isModalVisible.value = true;
+    };
+    const closeModal = () => {
+      isModalVisible.value = false;
+    };
+
+    // 測試規則
+    const generatorRule = (index) => {
+      if (form.value[index]?.isRequired) {
+        if (Array.isArray(form.value[index]?.value)) {
+          if (!form.value[index]?.value.length) {
             return '請填寫此欄位';
           }
         } else {
-          if (this.form[index]?.value == '-2' || !this.form[index]?.value) {
+          if (form.value[index]?.value == '-2' || !form.value[index]?.value) {
             return '請填寫此欄位';
           }
         }
       }
-      if (this.form[index]?.regexRule) {
-        if (Array.isArray(this.form[index]?.value)) {
-          if (!this.form[index]?.value.length) {
+      if (form.value[index]?.regexRule) {
+        if (Array.isArray(form.value[index]?.value)) {
+          if (!form.value[index]?.value.length) {
             return true;
           }
         } else {
-          if (this.form[index]?.value == '-2' || !this.form[index]?.value) {
+          if (form.value[index]?.value == '-2' || !form.value[index]?.value) {
             return true;
           }
         }
-        const regex = new RegExp(this.form[index]?.regexRule);
-        if (!regex.test(this.form[index]?.value)) {
+        const regex = new RegExp(form.value[index]?.regexRule);
+        if (!regex.test(form.value[index]?.value)) {
           return '請修改此欄位格式';
         }
       }
       return true;
-    },
+    };
+
     // 表單傳送
-    onSubmit() {
+    const onSubmit = () => {
       let passObj = {
-        Category: this.category,
-        GlobalUserId: this.userInfo.userId,
+        Category: category,
+        GlobalUserId: userInfo.userId,
         CaseIndexDataList: [],
       };
-      this.form.forEach((item) => {
+      form.value.forEach((item) => {
         passObj.CaseIndexDataList.push({
           Code: item.code,
           Value: item.fieldType == 4 ? item.value.join() : item.value,
@@ -263,34 +276,27 @@ export default {
       // call url api
       doPost('/FileScan/ActiveScanAgent', passObj).then((response) => {
         try {
-          window.protocolCheck(response, this.errorHandler);
+          window.protocolCheck(response, errorHandler);
         } catch (error) {
           console.log(error);
         }
       });
-    },
-    // 取得業務類別
-    async getCategoryList() {
-      const response = await doPost('/Common/GetCategoryList', {
-        Flag: 301,
-        GlobalUserId: this.userInfo.userId,
-      });
-      this.categoryOptions = response;
-    },
+    };
+
     // 選擇業務類別時觸發
-    onChangeCategory(event) {
+    const onChangeCategory = (event) => {
       // change時進入loading
 
       // 重選選項先清空陣列避免重複欄位
-      this.form = [];
+      form.value = [];
       // 根據選擇業務類別撈取索引
       doPost('/Common/GetCaseIndexListByCategory', {
         Category: event.target.value,
-        GlobalUserId: this.userInfo.userId,
+        GlobalUserId: userInfo.userId,
         Flag: 301,
       }).then((response) => {
-        this.caseIndexList = response;
-        this.caseIndexList.forEach((item) => {
+        caseIndexList.value = response;
+        caseIndexList.value.forEach((item) => {
           // 建立暫時存放表
           let formData = {
             ...item,
@@ -302,7 +308,7 @@ export default {
             formData.options = item.dataSource;
             formData.loaded = true;
 
-            let loaded = this.form.every((el) => el.loaded);
+            let loaded = form.value.every((el) => el.loaded);
             if (loaded) {
               //
             }
@@ -312,12 +318,29 @@ export default {
           } else {
             formData.value = item.defaultValue;
           }
-          this.form.push(formData);
+          form.value.push(formData);
           // 替換為主渲染變數
-          this.caseIndexList = this.form;
+          caseIndexList.value = form.value;
         });
       });
-    },
+    };
+
+    return {
+      scanCheck,
+      category,
+      categoryOptions,
+      caseIndexList,
+      form,
+      isModalVisible,
+      scanViewerUrl,
+      userInfo,
+      generatorRule,
+      errorHandler,
+      showModal,
+      closeModal,
+      onSubmit,
+      onChangeCategory,
+    };
   },
 };
 </script>

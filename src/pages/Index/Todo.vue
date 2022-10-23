@@ -197,85 +197,47 @@
 </template>
 
 <script>
-import { doPost, doAuthGet } from '@/utilities/api';
-import { mapGetters } from 'vuex';
+import { doPost } from '@/utilities/api';
 import { getDate } from '@/utilities/time';
 import store from '@/utilities/store';
+import { onMounted, reactive, ref, computed } from 'vue';
+import { useRouter } from "vue-router";
 
 export default {
   name: 'Todo',
-  data() {
-    return {
-      pendingPickup: {},
-      todo: {},
-      applyCase: {},
-      exceptionCaseCount: 0,
-      userInfo: {}
-    };
-  },
-  computed: {
-    ...mapGetters(['isCheckAuth']),
-  },
-  created(){
-    this.userInfo = JSON.parse(localStorage.getItem('userInfo'));
-  },
-  mounted() {
-    if (process.env.VUE_APP_ENV == 'prod' || process.env.VUE_APP_ENV == 'uat' || process.env.VUE_APP_ENV == 'sit1') {
-      if (!this.isCheckAuth) {
-        console.log('check not yet from todo');
-        // api checkauth
-        let tempAPIpath = '/CheckAuth';
-        doAuthGet(tempAPIpath).then((response) => {
-          const {
-            account,
-            pageList,
-            unitCode,
-            unitId,
-            unitName,
-            userCode,
-            userId,
-            userName,
-          } = response;
-          // 更新路由權限
-          store.dispatch('setRouteList', pageList);
-          // 設定使用者資料
-          const userInfo = {
-            account,
-            unitCode,
-            unitId,
-            unitName,
-            userCode,
-            userId,
-            userName,
-          };
-          store.dispatch('setUserInfo', userInfo);
-          store.dispatch('setIsCheckAuth', true);
-          this.getUserTodoList();
-        });
-      } else {
-        this.getUserTodoList();
-      }
-    } else {
-      this.getUserTodoList();
-    }
-  },
-  methods: {
-    getUserTodoList() {
+  setup() {
+    const router = useRouter();
+    const pendingPickup = reactive({});
+    const todo = reactive({});
+    const applyCase = reactive({});
+    const exceptionCaseCount = ref(0);
+    const userInfo = reactive({});
+
+    const isCheckAuth = computed(() => store.getters.isCheckAuth);
+
+    Object.assign(userInfo, JSON.parse(localStorage.getItem('userInfo')));
+
+    onMounted(() => {
+      getUserTodoList();
+    });
+
+    // methods
+    const getUserTodoList = () => {
       const passObj = {
-        GlobalUserId: this.userInfo.userId,
+        GlobalUserId: userInfo.userId,
       };
       doPost('/Bulletin/GetUserTodoList', passObj).then((response) => {
         console.log(response, 'wat');
-        const { pendingPickup, todo, applyCase, exceptionCaseCount } = response;
-        this.pendingPickup = pendingPickup;
-        this.todo = todo;
-        this.applyCase = applyCase;
-        this.exceptionCaseCount = exceptionCaseCount;
+        Object.assign(pendingPickup, response.pendingPickup);
+        Object.assign(todo, response.todo);
+        Object.assign(applyCase, response.applyCase);
+        Object.assign(exceptionCaseCount, response.exceptionCaseCount);
       });
-    },
+    };
+
     // 待取件 - 掃描案件(依業務)
-    handlePengingScanCase(arg) {
-      this.$router.push({
+    const handlePengingScanCase = (arg) => {
+      router.push({
         name: 'ScanCase',
         query: {
           Category: arg.id,
@@ -285,9 +247,10 @@ export default {
           WorkTeam: arg.workTeamIds.join(),
         },
       });
-    },
+    };
+
     // 待取件 - 總攬調閱申請案件
-    handleAllPengingApplyCase(arg) {
+    const handleAllPengingApplyCase = (arg) => {
       if (arg.applyCase.length > 0) {
         const tempTarget = [];
         const tempArr = arg.applyCase.filter((item) => item.count > 0);
@@ -296,129 +259,137 @@ export default {
         arg.applyCase.forEach((item) => {
           Array.isArray(tempUnitIds) ? tempUnitIds.concat(item.unitIds) : [];
         });
-        this.$router.push({
+        router.push({
           name: 'ApplyCase',
           query: {
             Category: tempTarget.join(),
             Flag: 101,
-            OperatorUnitId: this.userInfo.unitId,
+            OperatorUnitId: userInfo.unitId,
             Status: 0,
             CaseStatus: '1',
             ArchiveUnit: tempUnitIds.join(),
           },
         });
       }
-    },
+    };
+
     // 待取件 - 每日覆核未完成
-    handleAllPengingDailyReview() {
-      this.$router.push({
+    const handleAllPengingDailyReview = () => {
+      router.push({
         name: 'DailyReviewReport',
         query: {
           Flag: 101,
-          OperatorUnitId: this.userInfo.unitId,
+          OperatorUnitId: userInfo.unitId,
           Status: 0,
         },
       });
-    },
+    };
+
     // 待處理 - 掃描案件(依業務)
-    handleTodoScanCase(arg) {
+    const handleTodoScanCase = (arg) => {
       console.log(arg);
-      this.$router.push({
+      router.push({
         name: 'ScanCase',
         query: {
           Category: arg.id,
           Flag: 103,
           Status: 1,
           ArchiveUnit: arg.unitIds.join(),
-          ScanUser: this.userInfo.userId,
+          ScanUser: userInfo.userId,
         },
       });
-    },
+    };
+
     // 待處理 - 總攬待補案件
-    handleAllTodoPendingCase(arg) {
+    const handleAllTodoPendingCase = (arg) => {
       if (arg.pendingUploaded.length > 0) {
         const tempTarget = [];
         const tempArr = arg.pendingUploaded.filter((item) => item.count > 0);
         tempArr.forEach((item) => tempTarget.push(item.id));
-        this.$router.push({
+        router.push({
           name: 'PendingUploadedCase',
           query: {
             Category: tempTarget.join(),
             Flag: 102,
-            OperatorId: this.userInfo.userId,
+            OperatorId: userInfo.userId,
             Status: '0,1',
           },
         });
       }
-    },
+    };
+
     // 待處理 - 待補案件(依業務)
-    handleTodoPendingCase(arg) {
-      this.$router.push({
+    const handleTodoPendingCase = (arg) => {
+      router.push({
         name: 'PendingUploadedCase',
         query: {
           Category: arg.id,
           Flag: 103,
-          OperatorId: this.userInfo.userId,
+          OperatorId: userInfo.userId,
           Status: '0,1',
         },
       });
-    },
+    };
+
     // 待處理 - 調閱申請單總攬
-    handleAllTodoApplyCase(arg) {
+    const handleAllTodoApplyCase = (arg) => {
       if (arg.applyCase.length > 0) {
         const tempTarget = [];
         const tempArr = arg.applyCase.filter((item) => item.count > 0);
         tempArr.forEach((item) => tempTarget.push(item.id));
-        this.$router.push({
+        router.push({
           name: 'ApplyCase',
           query: {
             Category: tempTarget.join(),
             Flag: 102,
-            OperatorId: this.userInfo.userId,
+            OperatorId: userInfo.userId,
             Status: 0,
             CaseStatus: '0,2,3,7',
           },
         });
       }
-    },
+    };
+
     // 待處理 - 調閱申請單(依業務)
-    handleTodoApplyCase(arg) {
+    const handleTodoApplyCase = (arg) => {
       console.log(arg);
-      this.$router.push({
+      router.push({
         name: 'ApplyCase',
         query: {
           Category: arg.id,
           Flag: 103,
-          OperatorId: this.userInfo.userId,
+          OperatorId: userInfo.userId,
           Status: 0,
           CaseStatus: '0,2,3,7',
         },
       });
-    },
+    };
+
     // 我的申請案件 - 調閱申請單總攬
-    handlerAllMyUnfinishedCase(arg) {
+    const handlerAllMyUnfinishedCase = (arg) => {
       if (arg.unfinishedCase.length > 0) {
         const tempTarget = [];
         const tempArr = arg.unfinishedCase.filter((item) => item.count > 0);
         tempArr.forEach((item) => tempTarget.push(item.id));
-        this.$router.push({
+        router.push({
           name: 'ApplyCase',
           query: {
             Category: tempTarget.join(),
             Flag: 104,
-            ApplyUser: this.userInfo.userId,
+            ApplyUser: userInfo.userId,
             Status: 0,
           },
         });
       }
-    },
+    };
+
     // 我的申請案件 - 檢視調閱影像總攬
-    handlerAllMyImageView(arg) {
+    const handlerAllMyImageView = (arg) => {
       if (arg.imageView.length > 0) {
         const tempTarget = [];
         const tempArr = arg.imageView.filter((item) => item.count > 0);
         tempArr.forEach((item) => tempTarget.push(item.id));
-        this.$router.push({
+        router.push({
           name: 'QueryRecord',
           query: {
             Category: tempTarget.join(),
@@ -427,32 +398,56 @@ export default {
           },
         });
       }
-    },
+    };
+
     // 我的申請案件 - 總攬待補案件
-    handleMyPendingCase(arg) {
+    const handleMyPendingCase = (arg) => {
       if (arg.pendingUploaded.length > 0) {
         const tempTarget = [];
         const tempArr = arg.pendingUploaded.filter((item) => item.count > 0);
         tempArr.forEach((item) => tempTarget.push(item.id));
-        this.$router.push({
+        router.push({
           name: 'PendingUploadedCase',
           query: {
             Category: tempTarget.join(),
             Flag: 104,
-            UserId: this.userInfo.userId,
+            UserId: userInfo.userId,
             Status: '0,1',
           },
         });
       }
-    },
-    handleExceptionCase() {
+    };
+
+    const handleExceptionCase = () => {
       localStorage.removeItem('GlobalUserId');
-      localStorage.setItem('GlobalUserId', this.userInfo.userId);
-      const routeData = this.$router.resolve({
+      localStorage.setItem('GlobalUserId', userInfo.userId);
+      const routeData = router.resolve({
         name: 'MyExceptionCase',
       });
       window.open(routeData.href, '_blank');
-    },
+    };
+
+    return {
+      pendingPickup,
+      todo,
+      applyCase,
+      exceptionCaseCount,
+      userInfo,
+      isCheckAuth,
+      getUserTodoList,
+      handlePengingScanCase,
+      handleAllPengingApplyCase,
+      handleAllPengingDailyReview,
+      handleTodoScanCase,
+      handleAllTodoPendingCase,
+      handleTodoPendingCase,
+      handleAllTodoApplyCase,
+      handleTodoApplyCase,
+      handlerAllMyUnfinishedCase,
+      handlerAllMyImageView,
+      handleMyPendingCase,
+      handleExceptionCase,
+    };
   },
 };
 </script>

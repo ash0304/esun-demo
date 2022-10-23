@@ -119,7 +119,10 @@
             <template #header>預覽</template>
             <template #body>
               <div class="modal-body-padding sampleImg">
-                <img src="@/assets/images/DIMS批次產出QRCode範例檔(CPS).jpg" alt="">
+                <img
+                  src="@/assets/images/DIMS批次產出QRCode範例檔(CPS).jpg"
+                  alt=""
+                />
               </div>
             </template>
             <template #cancelBtn> 取消 </template>
@@ -165,81 +168,66 @@ import Modal from '@/components/Modal.vue';
 
 import { doPost, doFilePost } from '@/utilities/api';
 import store from '@/utilities/store';
+import { onMounted, reactive, ref, watch } from 'vue';
+// import { watch } from 'fs';
 
 export default {
   name: 'GenerateMultiQRCode',
   components: { Form, Field, Modal },
-  data() {
-    return {
-      scanCheck: '系統未偵測到Scan Agent! 請至玉山安裝專區，下載安裝',
-      category: -2,
-      categoryOptions: [],
-      currentCategory: '',
-      caseIndexList: [],
-      form: [],
-      isModalVisible: false,
-      isModalVisible2: false,
-      scanViewerUrl: '',
-      fileErrorMsg: '',
-      file: null,
-      userInfo: {}
-    };
-  },
-  created(){
-    this.userInfo = JSON.parse(localStorage.getItem('userInfo'));
-  },
-  mounted() {
-    this.getCategoryList();
-  },
-  watch: {
-    file: function (newValue, oldValue) {
+  setup() {
+    const scanCheck = ref('系統未偵測到Scan Agent! 請至玉山安裝專區，下載安裝');
+    const category = ref(-2);
+    const categoryOptions = ref([]);
+    const currentCategory = ref('');
+    const caseIndexList = ref([]);
+    const form = ref([]);
+    const isModalVisible = ref(false);
+    const isModalVisible2 = ref(false);
+    const scanViewerUrl = ref('');
+    const fileErrorMsg = ref('');
+    const file = ref(null);
+    const userInfo = reactive({});
+
+    Object.assign(userInfo, JSON.parse(localStorage.getItem('userInfo')));
+
+    onMounted(() => {
+      getCategoryList();
+    });
+    
+    watch(file.value, (newValue, oldValue) => {
       console.log(oldValue);
       if (newValue) {
-        this.fileErrorMsg = '';
+        fileErrorMsg.value = '';
       }
-    },
-  },
-  methods: {
-    showModal() {
-      this.isModalVisible = true;
-    },
-    closeModal() {
-      this.isModalVisible = false;
-    },
-    // 上傳檔案
-    onUpload(e) {
-      this.file = e.target.files[0];
-    },
-    showSampleImg() {
-      this.isModalVisible2 = true;
-    },
-    closeSampleImg() {
-      this.isModalVisible2 = false;
-    },
-    // 下載範例檔
-    async downloadSample() {
-      const passObj = {
-        Category: this.category,
-        GlobalUserId: this.userInfo.userId,
-      };
-      const response = await doPost('/FileScan/GetSampleFile', passObj);
-      const a = document.createElement('a');
-      a.href =
-        'data:text/csv;charset=utf-8,%EF%BB%BF' + encodeURIComponent(response);
-      a.target = '_blank';
-      a.download = `整批產製QR Code_(${this.currentCategory}).csv`;
-      a.click();
-    },
+    });
+
+    // 取得業務類別
+    const getCategoryList = async () => {
+      const response = await doPost('/Common/GetCategoryList', {
+        Flag: 501,
+        GlobalUserId: userInfo.userId,
+      });
+      categoryOptions.value = response;
+    };
+
+    // 選擇業務類別時觸發
+    const onChangeCategory = (event) => {
+      const tempArr = categoryOptions.value.filter(
+        (item) => item.id == event.target.value
+      );
+      currentCategory.value = tempArr[0].text;
+    };
+
     // 表單傳送
-    onSubmit() {
-      if (!this.file) {
-        this.fileErrorMsg = '請填寫此欄位';
+    const onSubmit = () => {
+      if (!file.value) {
+        fileErrorMsg.value = '請填寫此欄位';
         return;
       }
       let formData = new FormData();
-      formData.append('Category', this.category);
-      formData.append('GlobalUserId', this.userInfo.userId);
-      formData.append('File', this.file);
+      formData.append('Category', category.value);
+      formData.append('GlobalUserId', userInfo.userId);
+      formData.append('File', file.value);
       // 先清空
       store.dispatch('setPDFString', '');
       doFilePost('/FileScan/GenerateMultiQRCode', formData).then((response) => {
@@ -270,22 +258,63 @@ export default {
           store.dispatch('toggleGlobalModal', true);
         }
       });
-    },
-    // 取得業務類別
-    async getCategoryList() {
-      const response = await doPost('/Common/GetCategoryList', {
-        Flag: 501,
-        GlobalUserId: this.userInfo.userId,
-      });
-      this.categoryOptions = response;
-    },
-    // 選擇業務類別時觸發
-    onChangeCategory(event) {
-      const tempArr = this.categoryOptions.filter(
-        (item) => item.id == event.target.value
-      );
-      this.currentCategory = tempArr[0].text;
-    },
+    };
+
+    // 下載範例檔
+    const downloadSample = async () => {
+      const passObj = {
+        Category: category.value,
+        GlobalUserId: userInfo.userId,
+      };
+      const response = await doPost('/FileScan/GetSampleFile', passObj);
+      const a = document.createElement('a');
+      a.href =
+        'data:text/csv;charset=utf-8,%EF%BB%BF' + encodeURIComponent(response);
+      a.target = '_blank';
+      a.download = `整批產製QR Code_(${currentCategory.value}).csv`;
+      a.click();
+    };
+
+    const showModal = () => {
+      isModalVisible.value = true;
+    };
+    const closeModal = () => {
+      isModalVisible.value = false;
+    };
+    // 上傳檔案
+    const onUpload = (e) => {
+      file.value = e.target.files[0];
+    };
+    const showSampleImg = () => {
+      isModalVisible2.value = true;
+    };
+    const closeSampleImg = () => {
+      isModalVisible2.value = false;
+    };
+
+    return {
+      scanCheck,
+      category,
+      categoryOptions,
+      currentCategory,
+      caseIndexList,
+      form,
+      isModalVisible,
+      isModalVisible2,
+      scanViewerUrl,
+      fileErrorMsg,
+      file,
+      userInfo,
+      getCategoryList,
+      onChangeCategory,
+      onSubmit,
+      downloadSample,
+      showModal,
+      closeModal,
+      onUpload,
+      showSampleImg,
+      closeSampleImg,
+    };
   },
 };
 </script>

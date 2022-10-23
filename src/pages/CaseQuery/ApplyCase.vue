@@ -402,280 +402,290 @@ import { VueGoodTable } from 'vue-good-table-next';
 import Select2 from 'vue3-select2-component';
 import JsonCSV from '@/components/JsonCSV';
 
+import { onMounted, reactive, ref } from 'vue';
 import { generatorCSVname } from '@/utilities/time';
 import { doPost } from '../../utilities/api';
+import { useRoute, useRouter } from 'vue-router';
 // import store from '@/utilities/store';
 
 export default {
   name: 'ApplyCase',
   components: { Form, Field, VueGoodTable, Select2, JsonCSV },
-  data() {
-    return {
-      categoryErrorMsg: '',
-      isSearch: false,
-      isLoadingVisible: false,
-      scanCheck: '系統未偵測到Scan Agent! 請至玉山安裝專區，下載安裝',
-      flag: 1001,
-      category: '',
-      categoryOptions: [],
-      roleList: [],
-      unitList: [],
-      userList: [],
-      showUserList: [],
-      showOperatorList: [],
-      reasonList: [],
-      caseStatusList: [
-        { id: 0, text: '覆核中' },
-        { id: 1, text: '待取件' },
-        { id: 2, text: '分派中' },
-        { id: 3, text: '選檔中' },
-        { id: 4, text: '已通過' },
-        { id: 5, text: '已婉拒' },
-        { id: 6, text: '銷案' },
-        { id: 7, text: '待處理' },
-      ],
-      applyStatusTransfer: {
-        0: '尚有調閱案件處理中',
-        1: '全數調閱案件已結案',
-        2: '銷案',
+  setup() {
+    const route = useRoute();
+    const router = useRouter();
+    const categoryErrorMsg = ref('');
+    const isSearch = ref(false);
+    const isLoadingVisible = ref(false);
+    const scanCheck = ref('系統未偵測到Scan Agent! 請至玉山安裝專區，下載安裝');
+    const flag = ref(1001);
+    const category = ref('');
+    const categoryOptions = ref([]);
+    const roleList = ref([]);
+    const unitList = ref([]);
+    const userList = ref([]);
+    const showUserList = ref([]);
+    const showOperatorList = ref([]);
+    const reasonList = ref([]);
+    const caseStatusList = ref([
+      { id: 0, text: '覆核中' },
+      { id: 1, text: '待取件' },
+      { id: 2, text: '分派中' },
+      { id: 3, text: '選檔中' },
+      { id: 4, text: '已通過' },
+      { id: 5, text: '已婉拒' },
+      { id: 6, text: '銷案' },
+      { id: 7, text: '待處理' },
+    ]);
+    const applyStatusTransfer = reactive({
+      0: '尚有調閱案件處理中',
+      1: '全數調閱案件已結案',
+      2: '銷案',
+    });
+    const caseStatusTransfer = reactive({
+      0: '覆核中',
+      1: '待取件',
+      2: '分派中',
+      3: '選檔中',
+      4: '已通過',
+      5: '已婉拒',
+      6: '銷案',
+      7: '待處理',
+    });
+    const isModalVisible = ref(false);
+    const scanViewerUrl = ref('');
+    const applyNo = ref('');
+    const applyUnit = ref([]);
+    const applyRole = ref([]);
+    const archiveUnit = ref([]);
+    const applyUser = ref([]);
+    const startDate = ref('');
+    const endDate = ref('');
+    const applyReason = 0;
+    const operatorUnit = ref([]);
+    const operatorUser = ref([]);
+    const caseStatus = ref([]);
+    const caseNo = ref('');
+    const status = ref(-1);
+
+    // table
+    const paginationOptions = reactive(datatable.paginationOptions);
+    const totalRecords = ref(0);
+    const columns = ref([
+      {
+        label: '',
+        field: 'Id',
+        hidden: true,
+        sortable: false,
       },
-      caseStatusTransfer: {
-        0: '覆核中',
-        1: '待取件',
-        2: '分派中',
-        3: '選檔中',
-        4: '已通過',
-        5: '已婉拒',
-        6: '銷案',
-        7: '待處理',
+      {
+        label: '點我處理',
+        field: 'AllowOpen',
+        hidden: false,
+        sortable: false,
+        width: '150px',
       },
-      isModalVisible: false,
-      scanViewerUrl: '',
-      applyNo: '',
-      applyUnit: [],
-      applyRole: [],
-      archiveUnit: [],
-      applyUser: [],
-      startDate: '',
-      endDate: '',
-      applyReason: 0,
-      operatorUnit: [],
-      operatorUser: [],
-      caseStatus: [],
-      caseNo: '',
-      status: -1,
-      // table
-      paginationOptions: datatable.paginationOptions,
-      totalRecords: 0,
-      columns: [
-        {
-          label: '',
-          field: 'Id',
-          hidden: true,
-          sortable: false,
-        },
-        {
-          label: '點我處理',
-          field: 'AllowOpen',
-          hidden: false,
-          sortable: false,
-          width: '150px',
-        },
-        {
-          label: '調閱申請單單號',
-          field: 'ApplyNo',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '業務類別',
-          field: 'Category',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '調閱申請單位',
-          field: 'ApplyUnit',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '調閱申請人員',
-          field: 'ApplyUser',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '申請角色',
-          field: 'ApplyRole',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '調閱申請日期',
-          field: 'ApplyDate',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '調閱期間',
-          field: 'ApplyPeriod',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '調閱事由',
-          field: 'ApplyReason',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '調閱申請單狀態',
-          field: 'ApplyStatus',
-          hidden: false,
-          width: '200px',
-        },
-      ],
-      rows: [],
-      tempRows: [],
-      // csv
-      fields: [],
-      labels: [],
-      userInfo: {}      
+      {
+        label: '調閱申請單單號',
+        field: 'ApplyNo',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '業務類別',
+        field: 'Category',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '調閱申請單位',
+        field: 'ApplyUnit',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '調閱申請人員',
+        field: 'ApplyUser',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '申請角色',
+        field: 'ApplyRole',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '調閱申請日期',
+        field: 'ApplyDate',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '調閱期間',
+        field: 'ApplyPeriod',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '調閱事由',
+        field: 'ApplyReason',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '調閱申請單狀態',
+        field: 'ApplyStatus',
+        hidden: false,
+        width: '200px',
+      },
+    ]);
+    const rows = ref([]);
+    const tempRows = ref([]);
+    // csv
+    const fields = ref([]);
+    const labels = ref([]);
+    const userInfo = reactive({});
+
+    Object.assign(userInfo, JSON.parse(localStorage.getItem('userInfo')));
+
+    onMounted(() => {
+      getCategoryList();
+    });
+
+    // methods
+    const applyUnitChange = () => {
+      if (applyUnit.value.length > 0) {
+        const tempArr = userList.value.filter((item) => {
+          return applyUnit.value.indexOf(`${item.parentId}`) !== -1;
+        });
+        showUserList.value = tempArr;
+      } else {
+        showUserList.value = userList.value;
+      }
     };
-  },
-  created(){
-    this.userInfo = JSON.parse(localStorage.getItem('userInfo'));
-  },
-  mounted() {
-    this.getCategoryList();
-  },
-  methods: {
-    generatorCSVname,
-    applyUnitChange() {
-      if (this.applyUnit.length > 0) {
-        const tempArr = this.userList.filter((item) => {
-          return this.applyUnit.indexOf(`${item.parentId}`) !== -1;
+
+    const operatorUnitChange = () => {
+      if (operatorUnit.value.length > 0) {
+        const tempArr = userList.value.filter((item) => {
+          return operatorUnit.value.indexOf(`${item.parentId}`) !== -1;
         });
-        this.showUserList = tempArr;
+        showOperatorList.value = tempArr;
       } else {
-        this.showUserList = this.userList;
+        showOperatorList.value = userList.value;
       }
-    },
-    operatorUnitChange() {
-      if (this.operatorUnit.length > 0) {
-        const tempArr = this.userList.filter((item) => {
-          return this.operatorUnit.indexOf(`${item.parentId}`) !== -1;
-        });
-        this.showOperatorList = tempArr;
-      } else {
-        this.showOperatorList = this.userList;
-      }
-    },
-    getCategoryList() {
+    };
+
+    const getCategoryList = () => {
       doPost('/Common/GetCategoryList', {
         Flag: 1001,
-        GlobalUserId: this.userInfo.userId,
+        GlobalUserId: userInfo.userId,
       }).then((response) => {
-        this.categoryOptions = response;
-        this.queryInitData();
+        categoryOptions.value = response;
+        queryInitData();
       });
-    },
-    onChangeCategory() {
-      if (!this.category || !this.category.length) {
-        this.categoryErrorMsg = '請填寫此欄位';
+    };
+
+    const onChangeCategory = () => {
+      if (!category.value || !category.value.length) {
+        categoryErrorMsg.value = '請填寫此欄位';
       } else {
-        this.categoryErrorMsg = '';
+        categoryErrorMsg.value = '';
       }
-    },
-    queryInitData() {
+    };
+
+    const queryInitData = () => {
       const passObj = {
-        GlobalUserId: this.userInfo.userId,
+        GlobalUserId: userInfo.userId,
       };
       doPost('/ApplyCase/QueryInitData', passObj).then((response) => {
         const { reasonList, roleList, unitList, userList } = response;
-        this.reasonList = reasonList;
-        this.roleList = roleList;
-        this.unitList = unitList;
-        this.userList = userList;
-        this.showUserList = this.userList;
-        this.showOperatorList = this.userList;
-        if (this.$route.query.Flag) {
-          if (this.$route.query.Flag == '104') {
-            this.flag = parseInt(this.$route.query.Flag);
-            this.category = this.$route.query.Category.split(',');
-            if (this.$route.query.ApplyUser) {
-              this.applyUser = [this.$route.query.ApplyUser];
+        reasonList.value = response.reasonList;
+        roleList.value = response.roleList;
+        unitList.value = response.unitList;
+        userList.value = response.userList;
+        showUserList.value = userList.value;
+        showOperatorList.value = userList.value;
+        if (route.query.Flag) {
+          if (route.query.Flag == '104') {
+            flag.value = parseInt(route.query.Flag);
+            category.value = route.query.Category.split(',');
+            if (route.query.ApplyUser) {
+              applyUser.value = [route.query.ApplyUser];
             }
-            this.status = parseInt(this.$route.query.Status);
-            this.loadItems();
+            status.value = parseInt(route.query.Status);
+            loadItems();
           } else {
-            this.flag = parseInt(this.$route.query.Flag);
-            this.category = this.$route.query.Category.split(',');
-            if (this.$route.query.OperatorId) {
-              this.operatorUser = [this.$route.query.OperatorId];
+            flag.value = parseInt(route.query.Flag);
+            category.value = route.query.Category.split(',');
+            if (route.query.OperatorId) {
+              operatorUser.value = [route.query.OperatorId];
             }
-            if (this.$route.query.OperatorUnitId) {
-              this.operatorUnit = [this.$route.query.OperatorUnitId];
+            if (route.query.OperatorUnitId) {
+              operatorUnit.value = [route.query.OperatorUnitId];
             }
-            if (this.$route.query.CaseStatus) {
-              this.caseStatus = this.$route.query.CaseStatus.split(',');
+            if (route.query.CaseStatus) {
+              caseStatus.value = route.query.CaseStatus.split(',');
             }
-            if (this.$route.query.ArchiveUnit) {
-              this.archiveUnit = this.$route.query.ArchiveUnit.split(',');
+            if (route.query.ArchiveUnit) {
+              archiveUnit.value = route.query.ArchiveUnit.split(',');
             }
-            this.status = parseInt(this.$route.query.Status);
-            this.loadItems();
+            status.value = parseInt(route.query.Status);
+            loadItems();
           }
         } else {
           // 預設值
-          this.applyUnit = [`${this.userInfo.unitId}`];
-          this.archiveUnit = [`${this.userInfo.unitId}`];
+          applyUnit.value = [`${userInfo.unitId}`];
+          archiveUnit.value = [`${userInfo.unitId}`];
           // 因為預設值做的額外處理
-          const tempArr = this.userList.filter((item) => {
-            return this.applyUnit.indexOf(`${item.parentId}`) !== -1;
+          const tempArr = userList.value.filter((item) => {
+            return applyUnit.value.indexOf(`${item.parentId}`) !== -1;
           });
-          this.showUserList = tempArr;
-          this.applyUser = [`${this.userInfo.userId}`];
+          showUserList.value = tempArr;
+          applyUser.value = [`${userInfo.userId}`];
         }
       });
-    },
-    onSubmit() {
-      this.loadItems();
-    },
-    clearQuery() {
+    };
+
+    const onSubmit = () => {
+      loadItems();
+    };
+    const clearQuery = () => {
       // clear
-      this.category = [];
-      this.applyUnit = [];
-      this.applyRole = [];
-      this.archiveUnit = [];
-      this.applyUser = [];
-      this.startDate = '';
-      this.endDate = '';
-      this.applyReason = 0;
-      this.operatorUnit = [];
-      this.operatorUser = [];
-      this.caseStatus = [];
-      this.caseNo = '';
-      this.status = -1;
-      this.isSearch = false;
-      this.queryInitData();
-    },
-    onPageChange(params) {
-      datatable.onPageChange(params, this.loadItems);
-    },
-    onPerPageChange(params) {
-      datatable.onPerPageChange(params, this.loadItems);
-    },
-    onSortChange(params) {
-      datatable.onSortChange(params, this.loadItems);
-    },
+      category.value = [];
+      applyUnit.value = [];
+      applyRole.value = [];
+      archiveUnit.value = [];
+      applyUser.value = [];
+      startDate.value = '';
+      endDate.value = '';
+      applyReason.value = 0;
+      operatorUnit.value = [];
+      operatorUser.value = [];
+      caseStatus.value = [];
+      caseNo.value = '';
+      status.value = -1;
+      isSearch.value = false;
+      queryInitData();
+    };
+
+    const onPageChange = (params) => {
+      datatable.onPageChange(params, loadItems);
+    };
+    const onPerPageChange = (params) => {
+      datatable.onPerPageChange(params, loadItems);
+    };
+    const onSortChange = (params) => {
+      datatable.onSortChange(params, loadItems);
+    };
+
     // 轉大寫開頭屬性
-    capitalizeFirstLetter(string) {
+    const capitalizeFirstLetter = (string) => {
       return string.charAt(0).toUpperCase() + string.slice(1);
-    },
+    };
+
     // 轉成integer array工具
-    toIntegerArray(array) {
+    const toIntegerArray = (array) => {
       if (array.length > 0) {
         let tempArr = array.map((item) => {
           return parseInt(item);
@@ -684,10 +694,11 @@ export default {
       } else {
         return [];
       }
-    },
-    loadItems(params) {
-      if (!this.category || !this.category.length) {
-        this.categoryErrorMsg = '請填寫此欄位';
+    };
+
+    const loadItems = (params) => {
+      if (!category.value || !category.value.length) {
+        categoryErrorMsg.value = '請填寫此欄位';
         return;
       }
       // 這邊組成傳送參數(params + this.form)
@@ -708,45 +719,43 @@ export default {
           Data: {},
         };
       }
-      passObj.Data.Flag = this.flag;
-      passObj.Data.GlobalUserId = this.userInfo.userId;
-      passObj.Data.Categories = this.toIntegerArray(this.category);
-      passObj.Data.ApplyNo = this.applyNo;
-      passObj.Data.ApplyUnitIds = this.toIntegerArray(this.applyUnit);
-      passObj.Data.ApplyUserIds = this.toIntegerArray(this.applyUser);
-      passObj.Data.ApplyRoleIds = this.toIntegerArray(this.applyRole);
-      passObj.Data.OperatorUnitIds = this.toIntegerArray(this.operatorUnit);
-      passObj.Data.OperatorUserIds = this.toIntegerArray(this.operatorUser);
-      passObj.Data.StartDate = this.startDate;
-      passObj.Data.EndDate = this.endDate;
-      passObj.Data.ReasonId = this.applyReason;
-      passObj.Data.ArchiveUnitIds = this.toIntegerArray(this.archiveUnit);
-      passObj.Data.CaseNo = this.caseNo;
-      passObj.Data.Status = this.status;
-      passObj.Data.CaseStatusList = this.toIntegerArray(this.caseStatus);
-      this.isSearch = true;
+      passObj.Data.Flag = flag.value;
+      passObj.Data.GlobalUserId = userInfo.userId;
+      passObj.Data.Categories = toIntegerArray(category.value);
+      passObj.Data.ApplyNo = applyNo.value;
+      passObj.Data.ApplyUnitIds = toIntegerArray(applyUnit.value);
+      passObj.Data.ApplyUserIds = toIntegerArray(applyUser.value);
+      passObj.Data.ApplyRoleIds = toIntegerArray(applyRole.value);
+      passObj.Data.OperatorUnitIds = toIntegerArray(operatorUnit.value);
+      passObj.Data.OperatorUserIds = toIntegerArray(operatorUser.value);
+      passObj.Data.StartDate = startDate.value;
+      passObj.Data.EndDate = endDate.value;
+      passObj.Data.ReasonId = applyReason.value;
+      passObj.Data.ArchiveUnitIds = toIntegerArray(archiveUnit.value);
+      passObj.Data.CaseNo = caseNo.value;
+      passObj.Data.Status = status.value;
+      passObj.Data.CaseStatusList = toIntegerArray(caseStatus.value);
+      isSearch.value = true;
       doPost('/ApplyCase/Query', passObj).then((response) => {
-        const { rows, totalRecords } = response;
-        this.rows = [];
+        rows.value = [];
         // 對資料做Object屬性開頭大寫處理
-        rows.forEach((item, index) => {
+        response.rows.forEach((item, index) => {
           const tempObj = {};
           for (const [key, value] of Object.entries(item)) {
             if (key == 'applyStatus') {
-              tempObj[this.capitalizeFirstLetter(key)] =
-                this.applyStatusTransfer[value];
+              tempObj[capitalizeFirstLetter(key)] = applyStatusTransfer[value];
             } else {
-              tempObj[this.capitalizeFirstLetter(key)] = value;
+              tempObj[capitalizeFirstLetter(key)] = value;
             }
           }
-          this.rows[index] = tempObj;
+          rows.value[index] = tempObj;
         });
-        this.totalRecords = totalRecords;
+        totalRecords.value = response.totalRecords;
         // csv隱碼處理
-        this.tempRows = [];
+        tempRows.value = [];
         // deep copy
-        this.tempRows = JSON.parse(JSON.stringify(this.rows));
-        this.tempRows.forEach((item) => {
+        tempRows.value = JSON.parse(JSON.stringify(rows.value));
+        tempRows.value.forEach((item) => {
           const ObjKeys = Object.keys(item);
           ObjKeys.forEach((i, d) => {
             if (ObjKeys[d].includes('User')) {
@@ -763,25 +772,85 @@ export default {
           });
         });
         // csv setting處理
-        this.columns.forEach((item) => {
+        columns.value.forEach((item) => {
           if (item.field == 'Id' || item.field == 'AllowOpen') {
             // do nothing
           } else {
-            this.fields.push(item.field);
-            this.labels[item.field] = item.label;
+            fields.value.push(item.field);
+            labels.value[item.field] = item.label;
           }
         });
       });
-    },
-    handleApplyCase(Id) {
+    };
+
+    const handleApplyCase = (Id) => {
       localStorage.removeItem('GlobalUserId');
-      localStorage.setItem('GlobalUserId', this.userInfo.userId);
-      const routeData = this.$router.resolve({
+      localStorage.setItem('GlobalUserId', userInfo.userId);
+      const routeData = router.resolve({
         name: 'ApplyCasePage',
         query: { id: Id },
       });
       window.open(routeData.href, '_blank');
-    },
+    };
+
+    return {
+      route,
+      router,
+      categoryErrorMsg,
+      isSearch,
+      isLoadingVisible,
+      scanCheck,
+      flag,
+      category,
+      categoryOptions,
+      roleList,
+      unitList,
+      userList,
+      showUserList,
+      showOperatorList,
+      reasonList,
+      caseStatusList,
+      applyStatusTransfer,
+      caseStatusTransfer,
+      isModalVisible,
+      scanViewerUrl,
+      applyNo,
+      applyUnit,
+      applyRole,
+      archiveUnit,
+      applyUser,
+      startDate,
+      endDate,
+      applyReason,
+      operatorUnit,
+      operatorUser,
+      caseStatus,
+      caseNo,
+      status,
+      paginationOptions,
+      totalRecords,
+      columns,
+      rows,
+      tempRows,
+      fields,
+      labels,
+      userInfo,
+      generatorCSVname,
+      applyUnitChange,
+      operatorUnitChange,
+      getCategoryList,
+      onChangeCategory,
+      queryInitData,
+      onSubmit,
+      clearQuery,
+      onPageChange,
+      onPerPageChange,
+      onSortChange,
+      capitalizeFirstLetter,
+      toIntegerArray,
+      loadItems,
+      handleApplyCase,
+    };
   },
 };
 </script>

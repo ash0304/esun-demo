@@ -469,264 +469,262 @@ import Select2 from 'vue3-select2-component';
 import JsonCSV from '@/components/JsonCSV';
 import Modal from '@/components/Modal.vue';
 
+import { onMounted, reactive, ref } from 'vue';
 import store from '@/utilities/store';
 import { getDate } from '@/utilities/time';
 import { generatorCSVname } from '@/utilities/time';
 import { doPost } from '../../utilities/api';
+import { useRoute } from 'vue-router';
 
 export default {
   name: 'PendingUploadedCase',
   components: { Form, Field, Select2, VueGoodTable, JsonCSV, Modal },
-  data() {
-    return {
-      categoryErrorMsg: '',
-      statusErrorMsg: '',
-      buttonType: 0,
-      // 第一次搜尋
-      isSearch: false,
-      flag: 1101,
-      category: [],
-      categoryOptions: [],
-      caseId: '',
-      pendingUploadedNo: '',
-      unitId: -2,
-      userId: -2,
-      operatorId: -2,
-      startDate: getDate(7),
-      endDate: getDate(),
-      status: [],
-      unitList: [],
-      userList: [],
-      statusListOptions: [
-        {
-          id: 0,
-          text: '處理中',
-        },
-        {
-          id: 1,
-          text: '覆核中',
-        },
-        {
-          id: 2,
-          text: '補件完成',
-        },
-        {
-          id: 3,
-          text: '補件銷案',
-        },
-      ],
-      pendingUploadedStatusTransfer: {
-        0: '處理中',
-        1: '覆核中',
-        2: '補件完成',
-        3: '補件銷案',
+  setup() {
+    const route = useRoute();
+    const categoryErrorMsg = ref('');
+    const buttonType = ref(0);
+    // 第一次搜尋
+    const isSearch = ref(false);
+    const flag = ref(1101);
+    const category = ref([]);
+    const categoryOptions = ref([]);
+    const caseId = ref('');
+    const pendingUploadedNo = ref('');
+    const unitId = ref(-2);
+    const userId = ref(-2);
+    const operatorId = ref(-2);
+    const startDate = ref(getDate(7));
+    const endDate = ref(getDate());
+    const status = ref([]);
+    const unitList = ref([]);
+    const userList = ref([]);
+    const statusListOptions = ref([
+      {
+        id: 0,
+        text: '處理中',
       },
-      // 待補申請單彈窗
-      isModalVisible1: false,
-      pendingModalObj: {},
-      // 操作結果彈窗
-      isModalVisible2: false,
-      responseMessage: '',
-      // 意見+傳送彈窗
-      isModalVisible3: false,
-      currentFormId: 0,
-      transfer: -2,
-      transferText: '',
-      transferErrMsg: '',
-      transferOptions: [],
-      // table
-      paginationOptions: datatable.paginationOptions,
-      totalRecords: 0,
-      columns: [
-        {
-          label: '',
-          field: 'Id',
-          hidden: true,
-          sortable: false,
-        },
-        {
-          label: '點我處理',
-          field: 'AllowOpen',
-          hidden: false,
-          sortable: false,
-          width: '150px',
-        },
-        {
-          label: '業務類別',
-          field: 'Category',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '案件編號',
-          field: 'CaseNo',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '待補申請單單號',
-          field: 'PendingUploadedNo',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '待補申請單位',
-          field: 'PendingUploadedUnit',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '待補申請人員',
-          field: 'PendingUploadedUser',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '待補負責人員',
-          field: 'PendingUploadedOperator',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '待補申請日期',
-          field: 'PendingUploadedDate',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '待補理由',
-          field: 'PendingUploadedReason',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '處理人員',
-          field: 'Operator',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '待補申請單狀態',
-          field: 'PendingUploadedStatus',
-          hidden: false,
-          width: '150px',
-        },
-      ],
-      rows: [],
-      tempRows: [],
-      // csv
-      fields: [],
-      labels: [],
-      userInfo: {}
-    };
-  },
-  created(){
-    this.userInfo = JSON.parse(localStorage.getItem('userInfo'));
-  },
-  mounted() {
-    this.getCategoryList();
-    this.getInitSearchData();
-    if (this.$route.query.Flag) {
-      this.startDate = '';
-      this.endDate = '';
-      this.flag = parseInt(this.$route.query.Flag);
-      this.category = this.$route.query.Category.split(',');
-      if (this.$route.query.UserId) {
-        this.userId = this.$route.query.UserId;
+      {
+        id: 1,
+        text: '覆核中',
+      },
+      {
+        id: 2,
+        text: '補件完成',
+      },
+      {
+        id: 3,
+        text: '補件銷案',
+      },
+    ]);
+    const pendingUploadedStatusTransfer = reactive({
+      0: '處理中',
+      1: '覆核中',
+      2: '補件完成',
+      3: '補件銷案',
+    });
+    // 待補申請單彈窗
+    const isModalVisible1 = ref(false);
+    const pendingModalObj = reactive({});
+    // 操作結果彈窗
+    const isModalVisible2 = ref(false);
+    const responseMessage = ref('');
+    // 意見+傳送彈窗
+    const isModalVisible3 = ref(false);
+    const currentFormId = ref(0);
+    const transfer = ref(-2);
+    const transferText = ref('');
+    const transferErrMsg = ref('');
+    const transferOptions = ref([]);
+    // table
+    const paginationOptions = reactive(datatable.paginationOptions);
+    const totalRecords = ref(0);
+    const columns = ref([
+      {
+        label: '',
+        field: 'Id',
+        hidden: true,
+        sortable: false,
+      },
+      {
+        label: '點我處理',
+        field: 'AllowOpen',
+        hidden: false,
+        sortable: false,
+        width: '150px',
+      },
+      {
+        label: '業務類別',
+        field: 'Category',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '案件編號',
+        field: 'CaseNo',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '待補申請單單號',
+        field: 'PendingUploadedNo',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '待補申請單位',
+        field: 'PendingUploadedUnit',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '待補申請人員',
+        field: 'PendingUploadedUser',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '待補負責人員',
+        field: 'PendingUploadedOperator',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '待補申請日期',
+        field: 'PendingUploadedDate',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '待補理由',
+        field: 'PendingUploadedReason',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '處理人員',
+        field: 'Operator',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '待補申請單狀態',
+        field: 'PendingUploadedStatus',
+        hidden: false,
+        width: '150px',
+      },
+    ]);
+    const rows = ref([]);
+    const tempRows = ref([]);
+    // csv
+    const fields = ref([]);
+    const labels = ref([]);
+    const userInfo = reactive({});
+
+    Object.assign(userInfo, JSON.parse(localStorage.getItem('userInfo')));
+
+    onMounted(() => {
+      getCategoryList();
+      getInitSearchData();
+      if (route.query.Flag) {
+        startDate.value = '';
+        endDate.value = '';
+        flag.value = parseInt(route.query.Flag);
+        category.value = route.query.Category.split(',');
+        if (route.query.UserId) {
+          userId.value = route.query.UserId;
+        }
+        if (route.query.OperatorUnitId) {
+          unitId.value = route.query.OperatorUnitId;
+        }
+        status.value = route.query.Status.split(',');
+        loadItems();
       }
-      if (this.$route.query.OperatorUnitId) {
-        this.unitId = this.$route.query.OperatorUnitId;
-      }
-      this.status = this.$route.query.Status.split(',');
-      this.loadItems();
-    }
-  },
-  methods: {
-    generatorCSVname,
-    generatorString(target) {
+    });
+
+    // methods
+    const generatorString = (target) => {
       if (target == 'title') {
-        if (this.buttonType == 1) {
+        if (buttonType.value == 1) {
           return '覆核人員';
         } else {
-          if (this.pendingModalObj.pendingUploadedStatus == '處理中') {
+          if (pendingModalObj.pendingUploadedStatus == '處理中') {
             return '處理人員';
           } else {
             return '覆核人員';
           }
         }
       } else if (target == 'placeholder') {
-        if (this.buttonType == 1) {
+        if (buttonType.value == 1) {
           return '請選擇欲覆核之人員';
         } else {
-          if (this.pendingModalObj.pendingUploadedStatus == '處理中') {
+          if (pendingModalObj.pendingUploadedStatus == '處理中') {
             return '請選擇欲處理之人員';
           } else {
             return '請選擇欲覆核之人員';
           }
         }
       }
-    },
-    onSubmit() {
-      this.loadItems();
-    },
-    clearQuery() {
-      this.category = [];
-      this.caseId = '';
-      this.pendingUploadedNo = '';
-      this.unitId = -2;
-      this.userId = -2;
-      this.operatorId = -2;
-      this.startDate = getDate(7);
-      this.endDate = getDate();
-      this.status = [];
-      this.rows = [];
-    },
+    };
+
+    const onSubmit = () => {
+      loadItems();
+    };
+
+    const clearQuery = () => {
+      category.value = [];
+      caseId.value = '';
+      pendingUploadedNo.value = '';
+      unitId.value = -2;
+      userId.value = -2;
+      operatorId.value = -2;
+      startDate.value = getDate(7);
+      endDate.value = getDate();
+      status.value = [];
+      rows.value = [];
+    };
+
     // 取得
-    async getInitSearchData() {
+    const getInitSearchData = async () => {
       const response = await doPost('/PendingUploadedCase/QueryInitData', {
-        GlobalUserId: this.userInfo.userId,
+        GlobalUserId: userInfo.userId,
       });
-      const { unitList, userList } = response;
-      this.unitList = unitList;
-      this.userList = userList;
-    },
+      unitList.value = response.unitList;
+      userList.value = response.userList;
+    };
     // 取得業務類別
-    async getCategoryList() {
+    const getCategoryList = async () => {
       const response = await doPost('/Common/GetCategoryList', {
         Flag: 1101,
-        GlobalUserId: this.userInfo.userId,
+        GlobalUserId: userInfo.userId,
       });
-      this.categoryOptions = response;
-    },
-    onChangeCategory() {
-      if (!this.category || !this.category.length) {
-        this.categoryErrorMsg = '請填寫此欄位';
+      categoryOptions.value = response;
+    };
+
+    const onChangeCategory = () => {
+      if (!category.value || !category.value.length) {
+        categoryErrorMsg.value = '請填寫此欄位';
       } else {
-        this.categoryErrorMsg = '';
+        categoryErrorMsg.value = '';
       }
-    },
-    onChangeStatus() {
-      if (!this.status || !this.status.length) {
-        this.statusErrorMsg = '請填寫此欄位';
-      } else {
-        this.statusErrorMsg = '';
-      }
-    },
-    onPageChange(params) {
-      datatable.onPageChange(params, this.loadItems);
-    },
-    onPerPageChange(params) {
-      datatable.onPerPageChange(params, this.loadItems);
-    },
-    onSortChange(params) {
-      datatable.onSortChange(params, this.loadItems);
-    },
+    };
+
+    const onPageChange = (params) => {
+      datatable.onPageChange(params, loadItems);
+    };
+    const onPerPageChange = (params) => {
+      datatable.onPerPageChange(params, loadItems);
+    };
+    const onSortChange = (params) => {
+      datatable.onSortChange(params, loadItems);
+    };
+
     // 轉大寫開頭屬性
-    capitalizeFirstLetter(string) {
+    const capitalizeFirstLetter = (string) => {
       return string.charAt(0).toUpperCase() + string.slice(1);
-    },
+    };
+
     // 轉成integer array工具
-    toIntegerArray(array) {
+    const toIntegerArray = (array) => {
       if (array.length > 0) {
         let tempArr = array.map((item) => {
           return parseInt(item);
@@ -735,14 +733,11 @@ export default {
       } else {
         return [];
       }
-    },
-    loadItems(params) {
-      if (!this.category || !this.category.length) {
-        this.categoryErrorMsg = '請填寫此欄位';
-        return;
-      }
-      if (!this.status || !this.status.length) {
-        this.statusErrorMsg = '請填寫此欄位';
+    };
+
+    const loadItems = (params) => {
+      if (!category.value || !category.value.length) {
+        categoryErrorMsg.value = '請填寫此欄位';
         return;
       }
       // 這邊組成傳送參數(params + this.form)
@@ -763,19 +758,19 @@ export default {
           Data: {},
         };
       }
-      passObj.Data.GlobalUserId = this.userInfo.userId;
-      passObj.Data.Flag = this.flag;
-      passObj.Data.Categories = this.toIntegerArray(this.category);
-      passObj.Data.CaseId = this.caseId;
-      passObj.Data.PendingUploadedNo = this.pendingUploadedNo;
-      passObj.Data.UnitId = this.unitId;
-      passObj.Data.UserId = this.userId;
-      passObj.Data.OperatorId = this.operatorId;
-      passObj.Data.StartDate = this.startDate;
-      passObj.Data.EndDate = this.endDate;
-      passObj.Data.StatusList = this.toIntegerArray(this.status);
-      const ds = new Date(this.startDate);
-      const de = new Date(this.endDate);
+      passObj.Data.GlobalUserId = userInfo.userId;
+      passObj.Data.Flag = flag.value;
+      passObj.Data.Categories = toIntegerArray(category.value);
+      passObj.Data.CaseId = caseId.value;
+      passObj.Data.PendingUploadedNo = pendingUploadedNo.value;
+      passObj.Data.UnitId = unitId.value;
+      passObj.Data.UserId = userId.value;
+      passObj.Data.OperatorId = operatorId.value;
+      passObj.Data.StartDate = startDate.value;
+      passObj.Data.EndDate = endDate.value;
+      passObj.Data.StatusList = toIntegerArray(status.value);
+      const ds = new Date(startDate.value);
+      const de = new Date(endDate.value);
       const timeLimit = 30 * 24 * 60 * 60 * 1000;
       if (ds > de) {
         store.dispatch('setGlobalModalMessage', '結束日期不可小於開始日期');
@@ -787,30 +782,28 @@ export default {
         store.dispatch('toggleGlobalModal', true);
         return;
       }
-      this.isSearch = true;
+      isSearch.value = true;
       doPost('/PendingUploadedCase/Query', passObj).then((response) => {
-        console.log('response', response);
-        const { rows, totalRecords } = response;
-        this.rows = [];
+        rows.value = [];
         // 對資料做Object屬性開頭大寫處理
-        rows.forEach((item, index) => {
+        response.rows.forEach((item, index) => {
           const tempObj = {};
           for (const [key, value] of Object.entries(item)) {
             if (key == 'pendingUploadedStatus') {
-              tempObj[this.capitalizeFirstLetter(key)] =
-                this.pendingUploadedStatusTransfer[value];
+              tempObj[capitalizeFirstLetter(key)] =
+                pendingUploadedStatusTransfer[value];
             } else {
-              tempObj[this.capitalizeFirstLetter(key)] = value;
+              tempObj[capitalizeFirstLetter(key)] = value;
             }
           }
           this.rows[index] = tempObj;
         });
-        this.totalRecords = totalRecords;
+        totalRecords.value = response.totalRecords;
         // csv隱碼處理
-        this.tempRows = [];
+        tempRows.value = [];
         // deep copy
-        this.tempRows = JSON.parse(JSON.stringify(this.rows));
-        this.tempRows.forEach((item) => {
+        tempRows.value = JSON.parse(JSON.stringify(rows.value));
+        tempRows.value.forEach((item) => {
           const ObjKeys = Object.keys(item);
           ObjKeys.forEach((i, d) => {
             if (
@@ -831,182 +824,256 @@ export default {
           });
         });
         // csv setting處理
-        this.columns.forEach((item) => {
+        columns.value.forEach((item) => {
           if (item.field == 'Id' || item.field == 'AllowOpen') {
             // do nothing
           } else {
-            this.fields.push(item.field);
-            this.labels[item.field] = item.label;
+            fields.value.push(item.field);
+            labels[item.field] = item.label;
           }
         });
       });
-    },
-    handlePendingApplyCase(row) {
-      this.currentFormId = row.Id;
+    };
+
+    const handlePendingApplyCase = (row) => {
+      currentFormId.value = row.Id;
       const passObj = {
-        GlobalUserId: this.userInfo.userId,
-        FormId: this.currentFormId,
+        GlobalUserId: userInfo.userId,
+        FormId: currentFormId.value,
       };
       doPost('/PendingUploadedCase/QueryDetail', passObj).then((response) => {
-        this.pendingModalObj = response;
-        this.pendingModalObj.pendingUploadedStatus =
-          this.pendingUploadedStatusTransfer[
-            this.pendingModalObj.pendingUploadedStatus
-          ];
-        console.log(this.pendingModalObj);
+        Object.assign(pendingModalObj, response);
+        pendingModalObj.pendingUploadedStatus =
+          pendingUploadedStatusTransfer[pendingModalObj.pendingUploadedStatus];
+        console.log(pendingModalObj);
       });
-      this.showModal1();
-    },
-    transferChange() {
-      if (!this.transfer || this.transfer == '-2') {
-        this.transferErrMsg = '請填寫此欄位';
+      showModal1();
+    };
+
+    const transferChange = () => {
+      if (!transfer.value || transfer.value == '-2') {
+        transferErrMsg.value = '請填寫此欄位';
       } else {
-        this.transferErrMsg = '';
-        this.transferText = this.transferOptions.filter(
-          (item) => item.id == this.transfer
+        transferErrMsg.value = '';
+        transferText.value = transferOptions.value.filter(
+          (item) => item.id == transfer.value
         )[0].text;
       }
-    },
-    showModal1() {
-      this.isModalVisible1 = true;
-    },
-    closeModal1() {
-      this.isModalVisible1 = false;
-    },
-    showModal2() {
-      this.isModalVisible2 = true;
-    },
-    closeModal2() {
-      this.isModalVisible2 = false;
-    },
-    confirmModal2() {
-      this.responseMessage = '';
-      this.transfer = -2;
-      this.isModalVisible2 = false;
-    },
-    showModal3() {
-      this.isModalVisible3 = true;
-    },
-    closeModal3() {
-      this.isModalVisible3 = false;
-    },
-    confirmModal3() {
-      if (!this.transfer || this.transfer == '-2') {
-        this.transferErrMsg = '請填寫此欄位';
+    };
+
+    const showModal1 = () => {
+      isModalVisible1.value = true;
+    };
+    const closeModal1 = () => {
+      isModalVisible1.value = false;
+    };
+    const showModal2 = () => {
+      isModalVisible2.value = true;
+    };
+    const closeModal2 = () => {
+      isModalVisible2.value = false;
+    };
+
+    const confirmModal2 = () => {
+      responseMessage.value = '';
+      transfer.value = -2;
+      isModalVisible2.value = false;
+    };
+    const showModal3 = () => {
+      isModalVisible3.value = true;
+    };
+    const closeModal3 = () => {
+      isModalVisible3.value = false;
+    };
+
+    const confirmModal3 = () => {
+      if (!transfer.value || transfer.value == '-2') {
+        transferErrMsg.value = '請填寫此欄位';
         return;
       }
       if (this.buttonType == 2) {
         const passObj = {
-          GlobalUserId: this.userInfo.userId,
-          PendingUploadedFormId: this.currentFormId,
-          NextOperatorUserId: this.transfer,
+          GlobalUserId: userInfo.userId,
+          PendingUploadedFormId: currentFormId.value,
+          NextOperatorUserId: transfer.value,
         };
         doPost('/PendingUploadedCase/ReassignOperator', passObj).then(
           (response) => {
             if (response) {
-              this.responseMessage = `案件已移轉予${this.transferText}處理`;
-              this.showModal2();
+              responseMessage.value = `案件已移轉予${transferText.value}處理`;
+              showModal2();
             }
-            this.isModalVisible1 = false;
-            this.isModalVisible3 = false;
+            isModalVisible1.value = false;
+            isModalVisible3.value = false;
           }
         );
       } else {
         const passObj = {
-          GlobalUserId: this.userInfo.userId,
-          PendingUploadedFormId: this.currentFormId,
-          NextOperatorUserId: this.transfer,
+          GlobalUserId: userInfo.userId,
+          PendingUploadedFormId: currentFormId.value,
+          NextOperatorUserId: transfer.value,
         };
         doPost('/PendingUploadedCase/Cancel', passObj).then((response) => {
           if (response) {
-            this.responseMessage = `待補申請單單號(${this.pendingModalObj.caseNo})已傳送成功!`;
-            this.isModalVisible1 = false;
-            this.showModal2();
+            responseMessage.value = `待補申請單單號(${pendingModalObj.caseNo})已傳送成功!`;
+            isModalVisible1.value = false;
+            showModal2();
           }
-          this.isModalVisible1 = false;
-          this.isModalVisible3 = false;
+          isModalVisible1.value = false;
+          isModalVisible3.value = false;
         });
       }
-    },
+    };
+
     // 銷案
-    cancelCase() {
-      this.buttonType = 1;
+    const cancelCase = () => {
+      buttonType.value = 1;
       const passObj = {
-        GlobalUserId: this.userInfo.userId,
-        PendingUploadedFormId: this.currentFormId,
-        HierarchyId: this.pendingModalObj.categoryId,
-        ButtonType: this.buttonType,
+        GlobalUserId: userInfo.userId,
+        PendingUploadedFormId: currentFormId.value,
+        HierarchyId: pendingModalObj.categoryId,
+        ButtonType: buttonType.value,
       };
       doPost('/PendingUploadedCase/GetOperatorList', passObj).then(
         (response) => {
           if (response || response.length > 0) {
-            this.transferOptions = response;
-            this.showModal3();
+            transferOptions.value = response;
+            showModal3();
           }
         }
       );
-    },
+    };
+
     // 檢視/補件
-    pendingOrView() {
+    const pendingOrView = () => {
       const passObj = {
         Flag: 1102,
-        GlobalUserId: this.userInfo.userId,
-        PendingUploadedFormId: this.currentFormId,
-        CaseIds: [this.pendingModalObj.caseId],
+        GlobalUserId: userInfo.userId,
+        PendingUploadedFormId: currentFormId.value,
+        CaseIds: [pendingModalObj.caseId],
       };
       doPost('/Common/ActiveViewer', passObj).then((response) => {
         if (response) {
           window.open(response, '_blank');
         }
       });
-    },
+    };
     // 處理權移轉
-    rightTransfer() {
+    const rightTransfer = () => {
       this.buttonType = 2;
       const passObj = {
-        GlobalUserId: this.userInfo.userId,
-        PendingUploadedFormId: this.currentFormId,
-        HierarchyId: this.pendingModalObj.categoryId,
-        ButtonType: this.buttonType,
+        GlobalUserId: userInfo.userId,
+        PendingUploadedFormId: currentFormId.value,
+        HierarchyId: pendingModalObj.categoryId,
+        ButtonType: buttonType.value,
       };
       doPost('/PendingUploadedCase/GetOperatorList', passObj).then(
         (response) => {
           if (response || response.length > 0) {
-            this.transferOptions = response;
-            this.showModal3();
+            transferOptions.value = response;
+            showModal3();
           }
         }
       );
-    },
+    };
+
     // 退回
-    returnCase() {
+    const returnCase = () => {
       this.buttonType = 0;
       const passObj = {
-        GlobalUserId: this.userInfo.userId,
-        PendingUploadedFormId: this.currentFormId,
+        GlobalUserId: userInfo.userId,
+        PendingUploadedFormId: currentFormId.value,
         NextOperatorUserId: 0,
       };
       doPost('/PendingUploadedCase/Reject', passObj).then((response) => {
         if (response) {
           // 帶補成功訊息
-          this.isModalVisible1 = false;
+          isModalVisible1.value = false;
         }
       });
-    },
+    };
+
     // 檢視/結案
-    viewOrEndCase() {
+    const viewOrEndCase = () => {
       const passObj = {
         Flag: 1103,
-        GlobalUserId: this.userInfo.userId,
-        PendingUploadedFormId: this.currentFormId,
-        CaseIds: [this.pendingModalObj.caseId],
+        GlobalUserId: userInfo.userId,
+        PendingUploadedFormId: currentFormId.value,
+        CaseIds: [pendingModalObj.caseId],
       };
       doPost('/Common/ActiveViewer', passObj).then((response) => {
         if (response) {
           window.open(response, '_blank');
         }
       });
-    },
+    };
+
+    return {
+      route,
+      categoryErrorMsg,
+      buttonType,
+      isSearch,
+      flag,
+      category,
+      categoryOptions,
+      caseId,
+      pendingUploadedNo,
+      unitId,
+      userId,
+      operatorId,
+      startDate,
+      endDate,
+      status,
+      unitList,
+      userList,
+      statusListOptions,
+      pendingUploadedStatusTransfer,
+      isModalVisible1,
+      pendingModalObj,
+      isModalVisible2,
+      responseMessage,
+      isModalVisible3,
+      currentFormId,
+      transfer,
+      transferText,
+      transferErrMsg,
+      transferOptions,
+      paginationOptions,
+      totalRecords,
+      columns,
+      rows,
+      tempRows,
+      fields,
+      labels,
+      userInfo,
+      generatorCSVname,
+      generatorString,
+      onSubmit,
+      clearQuery,
+      getInitSearchData,
+      getCategoryList,
+      onChangeCategory,
+      onPageChange,
+      onPerPageChange,
+      onSortChange,
+      capitalizeFirstLetter,
+      toIntegerArray,
+      handlePendingApplyCase,
+      transferChange,
+      showModal1,
+      closeModal1,
+      showModal2,
+      closeModal2,
+      confirmModal2,
+      showModal3,
+      closeModal3,
+      confirmModal3,
+      cancelCase,
+      pendingOrView,
+      rightTransfer,
+      returnCase,
+      viewOrEndCase,
+    };
   },
 };
 </script>

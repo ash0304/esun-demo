@@ -9,7 +9,7 @@
       </ol>
     </nav>
     <h2 class="page-title">影像查詢(調閱申請)</h2>
-    <Form ref="form" @submit="onSubmit" v-slot="{ errors }">
+    <Form @submit="onSubmit" v-slot="{ errors }">
       <div class="mb-4">
         <!-- 業務類別 -->
         <div class="input-group border-bottom-0 row g-0">
@@ -430,6 +430,7 @@
                                 placeholder="請選擇起始日期"
                                 v-model="startDate"
                                 v-bind="field"
+                                :min="getDate(0)"
                               />
                               <span class="calendar">
                                 <button
@@ -460,6 +461,7 @@
                                 placeholder="請選擇結束日期"
                                 v-model="endDate"
                                 v-bind="field"
+                                :min="getDate(0)"
                               />
                               <span class="calendar">
                                 <button
@@ -533,7 +535,7 @@
                           type="file"
                           class="form-control"
                           id="inputGroupFile01"
-                          @change="onUpload1"
+                          @change="onUpload('1')"
                           accept="image/jpeg,image/png,application/pdf"
                         />
                         <label
@@ -563,7 +565,7 @@
                           type="file"
                           class="form-control"
                           id="inputGroupFile02"
-                          @change="onUpload2"
+                          @change="onUpload('2')"
                           accept="image/jpeg,image/png,application/pdf"
                         />
                         <label
@@ -593,7 +595,7 @@
                           type="file"
                           class="form-control"
                           id="inputGroupFile03"
-                          @change="onUpload3"
+                          @change="onUpload('3')"
                           accept="image/jpeg,image/png,application/pdf"
                         />
                         <label
@@ -737,160 +739,116 @@ import { generatorCSVname } from '@/utilities/time';
 
 import store from '@/utilities/store';
 import { doPost, doFilePost } from '@/utilities/api';
+import { onMounted, reactive, ref } from 'vue';
 
 export default {
   name: 'ImageView',
   components: { Field, Form, Loading, Select2, VueGoodTable, Modal, JsonCSV },
-  data() {
-    return {
-      // 結束時間是否早於起始判定
-      timeValid: true,
-      // 時間間隔是否大於30日
-      timeRangeValid: true,
-      // 第一次搜尋
-      isSearch: false,
-      // 調閱申請彈窗
-      isModalVisible1: false,
-      // 提示訊息彈窗
-      isModalVisible2: false,
-      responseMessage: '',
-      viewCheckBox: false,
-      viewApplyCheckBox: false,
-      isLoadingVisible: false,
-      category: -2,
-      categoryOptions: [],
-      currentMode: 0,
-      caseIndexList: [],
-      form: [],
-      applyNo: '',
-      applyRole: -2,
-      applyRoleMessage: '',
-      applyRoleOptions: [
-        { id: 1, text: '角色1' },
-        { id: 2, text: '角色2' },
-        { id: 3, text: '角色3' },
-      ],
-      processReason: -2,
-      processReasonMessage: '',
-      processReasonOptions: [
-        { id: 1, text: '稽核處查核1' },
-        { id: 2, text: '稽核處查核2' },
-        { id: 3, text: '稽核處查核3' },
-      ],
-      operator: -2,
-      operatorMessage: '',
-      operatorOptions: [
-        { id: 1, text: '王大美' },
-        { id: 2, text: '王中美' },
-        { id: 3, text: '王小美' },
-      ],
-      startDate: '',
-      endDate: '',
-      processText: '',
-      file1: '',
-      file2: '',
-      file3: '',
-      paginationOptions: datatable.paginationOptions,
-      columns: [],
-      rows: [],
-      exportRows: [],
-      totalRecords: 0,
-      modalcolumns: [],
-      modalrows: [],
-      caseIds: [],
-      // 調閱申請單
-      applyInitForm: {},
-      // csv匯出設定(未完成)
-      labels: {},
-      fields: [],
-      userInfo: {}
-    };
-  },
-  created(){
-    this.userInfo = JSON.parse(localStorage.getItem('userInfo'));
-  },
-  mounted() {
-    this.getCategoryList();
-  },
-  methods: {
-    getDate,
-    generatorCSVname,
-    bankingCenterChange(e) {
-      this.form.forEach((item) => {
-        if (item.code == 'ArchiveUnit') {
-          item.options = item.dataSource.filter(
-            (i) => i.parentId == e.target.value
-          );
-        }
-      });
-    },
-    onSubmit() {
-      this.loadItems();
-    },
-    generatorRule(index) {
-      if (this.form[index]?.isRequired) {
-        if (Array.isArray(this.form[index]?.value)) {
-          if (!this.form[index]?.value.length) {
-            return '請填寫此欄位';
-          }
-        } else {
-          if (this.form[index]?.value == '-2' || !this.form[index]?.value) {
-            return '請填寫此欄位';
-          }
-        }
-      }
-      if (this.form[index]?.regexRule) {
-        if (Array.isArray(this.form[index]?.value)) {
-          if (!this.form[index]?.value.length) {
-            return true;
-          }
-        } else {
-          if (this.form[index]?.value == '-2' || !this.form[index]?.value) {
-            return true;
-          }
-        }
-        const regex = new RegExp(this.form[index]?.regexRule);
-        if (!regex.test(this.form[index]?.value)) {
-          return '請修改此欄位格式';
-        }
-      }
-      return true;
-    },
-    clearQuery() {
-      // clear
-      this.category = '-2';
-      this.caseIndexList = [];
-      this.form = [];
-      this.status = -1;
-      this.rows = [];
-    },
+  setup() {
+    // 結束時間是否早於起始判定
+    const timeValid = ref(true);
+    // 時間間隔是否大於30日
+    const timeRangeValid = ref(true);
+    // 結束時間是否早於起始判定
+    const modalTimeValid = ref(true);
+    // 第一次搜尋
+    const isSearch = ref(false);
+    // 調閱申請彈窗
+    const isModalVisible1 = ref(false);
+    // 提示訊息彈窗
+    const isModalVisible2 = ref(false);
+    const responseMessage = ref('');
+    const viewCheckBox = ref(false);
+    const viewApplyCheckBox = ref(false);
+    const isLoadingVisible = ref(false);
+    const category = ref(-2);
+    const requestCategoryId = ref(0);
+    const categoryOptions = ref([]);
+    const currentMode = ref(0);
+    const caseIndexList = ref([]);
+    const form = ref([]);
+    const applyForm = ref(null);
+    const applyNo = ref('');
+    const applyRole = ref(-2);
+    const applyRoleMessage = ref('');
+    const applyRoleOptions = ref([
+      { id: 1, text: '角色1' },
+      { id: 2, text: '角色2' },
+      { id: 3, text: '角色3' },
+    ]);
+    const processReason = ref(-2);
+    const processReasonMessage = ref('');
+    const processReasonOptions = ref([
+      { id: 1, text: '稽核處查核1' },
+      { id: 2, text: '稽核處查核2' },
+      { id: 3, text: '稽核處查核3' },
+    ]);
+
+    const operator = ref(-2);
+    const operatorMessage = ref('');
+    const operatorOptions = ref([
+      { id: 1, text: '王大美' },
+      { id: 2, text: '王中美' },
+      { id: 3, text: '王小美' },
+    ]);
+
+    const startDate = ref('');
+    const endDate = ref('');
+    const processText = ref('');
+    const file1 = ref('');
+    const file2 = ref('');
+    const file3 = ref('');
+    // table
+    const paginationOptions = reactive(datatable.paginationOptions);
+
+    const columns = ref([]);
+    const rows = ref([]);
+    const exportRows = ref([]);
+    const totalRecords = ref(0);
+    const modalcolumns = ref([]);
+    const modalrows = ref([]);
+    const caseIds = ref([]);
+
+    // 調閱申請單
+    const applyInitForm = reactive({});
+    // csv匯出設定(未完成)
+    const labels = reactive({});
+    const fields = ref([]);
+    const userInfo = reactive({});
+
+    Object.assign(userInfo, JSON.parse(localStorage.getItem('userInfo')));
+
+    onMounted(() => {
+      getCategoryList();
+    });
+
+    // methods
     // 取得業務類別
-    async getCategoryList() {
+    const getCategoryList = async () => {
       const response = await doPost('/Common/GetCategoryList', {
         Flag: 601,
-        GlobalUserId: this.userInfo.userId,
+        GlobalUserId: userInfo.userId,
       });
-      this.categoryOptions = response;
-    },
-    // 選擇業務類別時觸發
-    onChangeCategory(event) {
-      // change時進入loading
+      categoryOptions.value = response;
+    };
 
+    // 選擇業務類別時觸發
+    const onChangeCategory = (event) => {
       // 重選選項先清空陣列避免重複欄位
-      this.form = [];
+      form.value = [];
       // 設定當前業務mode
-      const result = this.categoryOptions.filter(
+      const result = categoryOptions.value.filter(
         (item) => item.id == event.target.value
       );
-      this.currentMode = result[0].mode;
+      currentMode.value = result[0].mode;
       // 根據選擇業務類別撈取索引
       doPost('/Common/GetCaseIndexListByCategory', {
         Category: event.target.value,
-        GlobalUserId: this.userInfo.userId,
+        GlobalUserId: userInfo.userId,
         Flag: 601,
       }).then((response) => {
-        this.caseIndexList = response;
-        this.caseIndexList.forEach((item) => {
+        caseIndexList.value = response;
+        caseIndexList.value.forEach((item) => {
           // 建立暫時存放表
           let formData = {
             ...item,
@@ -903,7 +861,7 @@ export default {
             formData.options = item.dataSource;
             formData.loaded = true;
 
-            let loaded = this.form.every((el) => el.loaded);
+            let loaded = form.value.every((el) => el.loaded);
             if (loaded) {
               //
             }
@@ -919,25 +877,70 @@ export default {
             formData.value = getDate(7);
             formData.value2 = getDate();
           }
-          this.form.push(formData);
+          form.value.push(formData);
           // 替換為主渲染變數
-          this.caseIndexList = this.form;
+          caseIndexList.value = form.value;
         });
       });
-    },
-    updateParams(newProps) {
+    };
+
+    const onSubmit = () => {
+      loadItems();
+    };
+
+    // 測試規則
+    const generatorRule = (index) => {
+      if (form.value[index]?.isRequired) {
+        if (Array.isArray(form.value[index]?.value)) {
+          if (!form.value[index]?.value.length) {
+            return '請填寫此欄位';
+          }
+        } else {
+          if (form.value[index]?.value == '-2' || !form.value[index]?.value) {
+            return '請填寫此欄位';
+          }
+        }
+      }
+      if (form.value[index]?.regexRule) {
+        if (Array.isArray(form.value[index]?.value)) {
+          if (!form.value[index]?.value.length) {
+            return true;
+          }
+        } else {
+          if (form.value[index]?.value == '-2' || !form.value[index]?.value) {
+            return true;
+          }
+        }
+        const regex = new RegExp(form.value[index]?.regexRule);
+        if (!regex.test(form.value[index]?.value)) {
+          return '請修改此欄位格式';
+        }
+      }
+      return true;
+    };
+
+    const clearQuery = () => {
+      // clear
+      category.value = '-2';
+      caseIndexList.value = [];
+      form.value = [];
+      rows.value = [];
+    };
+
+    const updateParams = (newProps) => {
       datatable.updateParams(newProps);
-    },
-    onPageChange(params) {
-      datatable.onPageChange(params, this.loadItems);
-    },
-    onPerPageChange(params) {
-      datatable.onPerPageChange(params, this.loadItems);
-    },
-    onSortChange(params) {
-      datatable.onSortChange(params, this.loadItems);
-    },
-    transferFieldType(item) {
+    };
+    const onPageChange = (params) => {
+      datatable.onPageChange(params, loadItems);
+    };
+    const onPerPageChange = (params) => {
+      datatable.onPerPageChange(params, loadItems);
+    };
+    const onSortChange = (params) => {
+      datatable.onSortChange(params, loadItems);
+    };
+
+    const transferFieldType = (item) => {
       if (item.fieldType == 5) {
         return `${item.value},${item.value2}`;
       } else if (item.fieldType == 4) {
@@ -945,8 +948,10 @@ export default {
       } else {
         return `${item.value}`;
       }
-    },
-    loadItems(params) {
+    };
+
+    const loadItems = (params) => {
+      console.log('fofo', form);
       // 這邊組成傳送參數(params + this.form)
       let passObj = {};
       const serverReq = {
@@ -965,13 +970,13 @@ export default {
           Data: {},
         };
       }
-      passObj.Data.Category = this.category;
-      passObj.Data.GlobalUserId = this.userInfo.userId;
+      passObj.Data.Category = category.value;
+      passObj.Data.GlobalUserId = userInfo.userId;
       passObj.Data.CaseIndexDataList = [];
-      this.form.forEach((item) => {
+      form.value.forEach((item) => {
         passObj.Data.CaseIndexDataList.push({
           Code: item.code,
-          Value: this.transferFieldType(item),
+          Value: transferFieldType(item),
         });
         // 判斷日期(起始<結束)
         if (item.fieldType == 5) {
@@ -979,96 +984,99 @@ export default {
           const de = new Date(item.value2);
           const timeLimit = 30 * 24 * 60 * 60 * 1000;
           if (ds > de) {
-            this.timeValid = false;
+            timeValid.value = false;
           } else {
-            this.timeValid = true;
+            timeValid.value = true;
           }
           if (de - ds <= timeLimit) {
-            this.timeRangeValid = true;
+            timeRangeValid.value = true;
           } else {
-            this.timeRangeValid = false;
+            timeRangeValid.value = false;
           }
         }
       });
-      if (!this.timeValid) {
+      if (!timeValid.value) {
         store.dispatch('setGlobalModalMessage', '結束日期不可小於開始日期');
         store.dispatch('toggleGlobalModal', true);
         return;
       }
-      if (!this.timeRangeValid) {
+      if (!timeRangeValid.value) {
         store.dispatch('setGlobalModalMessage', '查詢期間最大範圍為30日');
         store.dispatch('toggleGlobalModal', true);
         return;
       }
-      this.isSearch = true;
+      isSearch.value = true;
       doPost('/Image/Query', passObj).then((response) => {
-        const { column, rows, totalRecords } = response;
-        this.columns = column;
-        this.columns.forEach((item) => {
+        columns.value = response.column;
+        columns.value.forEach((item) => {
           if (item.field === 'View' || item.field == 'Apply') {
             item.sortable = false;
           }
           item.width = '200px';
         });
-        this.rows = [];
+        rows.value = [];
         // rows需要轉換
-        rows.forEach((item, index) => {
-          this.rows[index] = {};
-          this.exportRows[index] = {};
+        response.rows.forEach((item, index) => {
+          rows.value[index] = {};
+          exportRows.value[index] = {};
           item.forEach((inner) => {
-            Object.assign(this.rows[index], {
+            Object.assign(rows.value[index], {
               [inner.field]: inner.value,
             });
-            Object.assign(this.exportRows[index], {
+            Object.assign(exportRows.value[index], {
               [inner.field]: inner.exportValue
                 ? inner.exportValue
                 : inner.value,
             });
           });
         });
-        this.rows.forEach((item) => {
+        rows.value.forEach((item) => {
           if (item.View) {
             item.viewValue = false;
           } else if (item.Apply) {
             item.viewApplyValue = false;
           }
         });
-        this.totalRecords = totalRecords;
+        requestCategoryId.value = rows.value[0].CategoryId;
+        totalRecords.value = response.totalRecords;
         // csv setting處理
-        this.columns.forEach((item) => {
+        columns.value.forEach((item) => {
           if (
             item.field == 'Id' ||
             item.field == 'CanView' ||
             item.field == 'CanApply' ||
             item.field == 'CaseNo' ||
+            item.field == 'CategoryId' ||
             item.field == 'View' ||
             item.field == 'Apply'
           ) {
             // do nothing
           } else {
-            this.fields.push(item.field);
-            this.labels[item.field] = item.label;
+            fields.value.push(item.field);
+            labels[item.field] = item.label;
           }
         });
+        console.log('hell no', caseIndexList, form);
       });
-    },
+    };
+
     // 檢視
-    handleView() {
-      const tempArr = this.rows.filter((item) => item.viewValue === true);
-      this.caseIds = [];
+    const handleView = () => {
+      const tempArr = rows.value.filter((item) => item.viewValue === true);
+      caseIds.value = [];
       tempArr.forEach((item) => {
-        this.caseIds.push(item.Id);
+        caseIds.value.push(item.Id);
       });
-      if (this.caseIds.length == 0) {
-        this.responseMessage = '請勾選欲開啟檢視的案件';
-        this.showModal2();
+      if (caseIds.value.length == 0) {
+        responseMessage.value = '請勾選欲開啟檢視的案件';
+        showModal2();
         return;
       }
       const passObj = {
         // 開啟影像檢視Flag未確定
         Flag: 8,
-        CaseIds: this.caseIds,
-        GlobalUserId: this.userInfo.userId,
+        CaseIds: caseIds.value,
+        GlobalUserId: userInfo.userId,
       };
       // do 檢視api
       doPost('/Common/ActiveViewer', passObj).then((response) => {
@@ -1076,228 +1084,258 @@ export default {
           window.open(response, '_blank');
         }
       });
-    },
+    };
+
     // 調閱申請
-    handleApply() {
-      this.showModal1();
-    },
+    const handleApply = () => {
+      showModal1();
+    };
+
     // 客製表頭勾選(檢視)
-    viewMainChange() {
-      if (this.viewCheckBox) {
-        this.rows.forEach((item) => {
+    const viewMainChange = () => {
+      if (viewCheckBox.value) {
+        rows.value.forEach((item) => {
           if (item.View && item.CanView) {
             item.viewValue = true;
           }
         });
       } else {
-        this.rows.forEach((item) => {
+        rows.value.forEach((item) => {
           if (item.View && item.CanView) {
             item.viewValue = false;
           }
         });
       }
-    },
+    };
+
     // 客製表頭勾選(調閱申請)
-    viewApplyMainChange() {
-      if (this.viewApplyCheckBox) {
-        this.rows.forEach((item) => {
+    const viewApplyMainChange = () => {
+      if (viewApplyCheckBox.value) {
+        rows.value.forEach((item) => {
           if (item.Apply && item.CanApply) {
             item.viewApplyValue = true;
           }
         });
       } else {
-        this.rows.forEach((item) => {
+        rows.value.forEach((item) => {
           if (item.Apply && item.CanApply) {
             item.viewApplyValue = false;
           }
         });
       }
-    },
+    };
+
     // 表內勾選框改變動作
-    viewChange() {
+    const viewChange = () => {
       // 驗證this.rows是不是每個都已經勾, 如果是把表頭v-mode改成true,反之
-      const tempArr = this.rows.filter((item) => item.View === true);
+      const tempArr = rows.value.filter((item) => item.View === true);
       const checkEvery = tempArr.every((item) => item.viewValue === true);
       if (checkEvery) {
-        this.viewCheckBox = true;
+        viewCheckBox.value = true;
       } else {
-        this.viewCheckBox = false;
+        viewCheckBox.value = false;
       }
-    },
+    };
     // 表內勾選框改變動作
-    viewApplyChange() {
+    const viewApplyChange = () => {
       // 驗證this.rows是不是每個都已經勾, 如果是把表頭v-mode改成true,反之
-      const tempArr = this.rows.filter((item) => item.Apply === true);
+      const tempArr = rows.value.filter((item) => item.Apply === true);
       const checkEvery = tempArr.every((item) => item.viewApplyValue === true);
       if (checkEvery) {
-        this.viewApplyCheckBox = true;
+        viewApplyCheckBox.value = true;
       } else {
-        this.viewApplyCheckBox = false;
+        viewApplyCheckBox.value = false;
       }
-    },
+    };
+
     // 申請角色改變
-    applyRoleChange() {
-      if (this.applyRole && this.applyRole != '-2') {
-        this.applyRoleMessage = '';
+    const applyRoleChange = () => {
+      if (applyRole.value && applyRole.value != '-2') {
+        applyRoleMessage.value = '';
       }
-      const tempTarget = this.applyRoleOptions.filter(
-        (item) => item.id == this.applyRole
+      const tempTarget = applyRoleOptions.value.filter(
+        (item) => item.id == applyRole.value
       );
-      this.applyInitForm = tempTarget[0];
-    },
-    // 彈窗控制(調閱申請)
-    showModal1() {
-      // 驗證有無選取調閱案件
-      const tempArr = this.rows.filter((item) => item.viewApplyValue === true);
-      this.caseIds = [];
-      tempArr.forEach((item) => {
-        this.caseIds.push(item.Id);
+      Object.assign(applyInitForm, tempTarget[0]);
+      const passObj = {
+        Category: category.value,
+        GlobalUserId: userInfo.userId,
+        RoleId: applyRole.value,
+      };
+      doPost('/ApplyCase/GetApplyOperatorList', passObj).then((response) => {
+        if (response) {
+          operatorOptions.value = response;
+        }
       });
-      if (this.caseIds.length == 0) {
-        this.responseMessage = '請勾選欲調閱申請的案件';
-        this.showModal2();
+    };
+
+    // 彈窗控制(調閱申請)
+    const showModal1 = () => {
+      // 驗證有無選取調閱案件
+      const tempArr = rows.value.filter((item) => item.viewApplyValue === true);
+      caseIds.value = [];
+      tempArr.forEach((item) => {
+        caseIds.value.push(item.Id);
+      });
+      if (caseIds.value.length == 0) {
+        responseMessage.value = '請勾選欲調閱申請的案件';
+        showModal2();
         return;
       }
       const passObj = {
-        Category: this.category,
-        Mode: this.currentMode,
-        CaseIds: this.caseIds,
-        GlobalUserId: this.userInfo.userId,
+        Category: requestCategoryId.value,
+        Mode: currentMode.value,
+        CaseIds: caseIds.value,
+        GlobalUserId: userInfo.userId,
       };
       doPost('/ApplyCase/QueryAddInitData', passObj).then((response) => {
-        const { applyNo, caseList, operatorList, reasonList, roleList } =
-          response;
-        this.applyNo = applyNo;
-        this.processReasonOptions = reasonList;
-        this.applyRoleOptions = roleList;
+        applyNo.value = response.applyNo;
+        processReasonOptions.value = response.reasonList;
+        applyRoleOptions.value = response.roleList;
         // 預設第一選項
-        this.applyRole = this.applyRoleOptions[0].id;
-        this.applyInitForm = this.applyRoleOptions[0];
-        this.operatorOptions = operatorList;
+        applyRole.value = applyRoleOptions.value[0].id;
+        Object.assign(applyInitForm, applyRoleOptions.value[0]);
+        operatorOptions.value = response.operatorList;
         // 設定modal中table
-        this.modalcolumns = caseList.column;
-        this.modalrows = [];
-        caseList.rows.forEach((item, index) => {
-          this.modalrows[index] = {};
+        modalcolumns.value = response.caseList.column;
+        modalrows.value = [];
+        response.caseList.rows.forEach((item, index) => {
+          modalrows.value[index] = {};
           item.forEach((inner) => {
-            Object.assign(this.modalrows[index], {
+            Object.assign(modalrows.value[index], {
               [inner.field]: inner.value,
             });
           });
         });
-        this.isModalVisible1 = true;
+        isModalVisible1.value = true;
       });
-    },
-    closeModal1() {
-      this.isModalVisible1 = false;
+    };
+
+    const closeModal1 = () => {
+      isModalVisible1.value = false;
       // 清空欄位
-      this.processReason = -2;
-      this.processText = '';
-      this.operator = -2;
-      this.applyRole = -2;
-      this.file1 = '';
-      this.file2 = '';
-      this.file3 = '';
-      this.$refs.applyForm.resetForm();
-    },
-    confirmModal1() {
-      if (!this.applyRole || this.applyRole == '-2') {
-        this.applyRoleMessage = '請填寫此欄位';
+      processReason.value = -2;
+      processText.value = '';
+      operator.value = -2;
+      applyRole.value = -2;
+      file1.value = '';
+      file2.value = '';
+      file3.value = '';
+    };
+
+    const confirmModal1 = () => {
+      if (!applyRole.value || applyRole.value == '-2') {
+        applyRoleMessage.value = '請填寫此欄位';
         return;
       }
-      if (!this.processReason || this.processReason == '-2') {
-        this.processReasonMessage = '請填寫此欄位';
+      if (!processReason.value || processReason.value == '-2') {
+        processReasonMessage.value = '請填寫此欄位';
         return;
       }
-      if (!this.operator || this.operator == '-2') {
-        this.operatorMessage = '請填寫此欄位';
+      if (!operator.value || operator.value == '-2') {
+        operatorMessage.value = '請填寫此欄位';
+        return;
+      }
+      const ds = new Date(startDate.value);
+      const de = new Date(endDate.value);
+      if (ds > de) {
+        modalTimeValid.value = false;
+      } else {
+        modalTimeValid.value = true;
+      }
+      if (!modalTimeValid.value) {
+        store.dispatch('setGlobalModalMessage', '結束日期不可小於開始日期');
+        store.dispatch('toggleGlobalModal', true);
         return;
       }
       let formData = new FormData();
-      formData.append('GlobalUserId', this.userInfo.userId);
-      formData.append('Category', this.category);
-      formData.append('RoleId', this.applyRole);
-      formData.append('StartDate', this.startDate);
-      formData.append('EndDate', this.endDate);
-      formData.append('ReasonId', this.processReason);
-      formData.append('Description', this.processText);
-      formData.append('NextOperatorUserId', this.operator);
-      formData.append('Files1', this.file1);
-      formData.append('Files2', this.file2);
-      formData.append('Files3', this.file3);
-      this.caseIds.forEach((item, index) => {
+      formData.append('GlobalUserId', userInfo.userId);
+      formData.append('Category', requestCategoryId.value);
+      formData.append('RoleId', applyRole.value);
+      formData.append('StartDate', startDate.value);
+      formData.append('EndDate', endDate.value);
+      formData.append('ReasonId', processReason.value);
+      formData.append('Description', processText.value);
+      formData.append('NextOperatorUserId', operator.value);
+      formData.append('Files1', file1.value);
+      formData.append('Files2', file2.value);
+      formData.append('Files3', file3.value);
+      caseIds.value.forEach((item, index) => {
         formData.append(`CaseIds[${index}]`, item);
       });
       // formData.append('CaseIds', this.caseIds);
       doFilePost('/ApplyCase/AddApply', formData).then((response) => {
         if (response) {
-          this.isModalVisible1 = false;
-          this.$refs.applyForm.resetForm();
-          this.responseMessage = `送出成功! 您的調閱申請單編號為:${response}`;
+          isModalVisible1.value = false;
+          applyForm.value.resetForm();
+          responseMessage.value = `送出成功! 您的調閱申請單編號為:${response}`;
           // 清空欄位
-          this.processReason = '';
-          this.processText = '';
-          this.operator = '';
-          if (this.file1) {
-            this.deleteFile('inputGroupFile01');
+          processReason.value = '';
+          processText.value = '';
+          operator.value = '';
+          if (file1.value) {
+            deleteFile('inputGroupFile01');
           }
-          if (this.file2) {
-            this.deleteFile('inputGroupFile02');
+          if (file2.value) {
+            deleteFile('inputGroupFile02');
           }
-          if (this.file3) {
-            this.deleteFile('inputGroupFile03');
+          if (file3.value) {
+            deleteFile('inputGroupFile03');
           }
 
-          this.showModal2();
+          showModal2();
         }
       });
-    },
-    showModal2() {
-      this.isModalVisible2 = true;
-    },
-    closeModal2() {
-      this.isModalVisible2 = false;
-    },
-    confirmModal2() {
+    };
+
+    const showModal2 = () => {
+      isModalVisible2.value = true;
+    };
+    const closeModal2 = () => {
+      isModalVisible2.value = false;
+    };
+    const confirmModal2 = () => {
       // do something and close
       setTimeout(() => {
-        this.isModalVisible2 = false;
+        isModalVisible2.value = false;
         // do call back?
-        this.loadItems();
+        loadItems();
       }, 100);
-    },
-    // 文件處理
-    onUpload1(e) {
-      this.file1 = e.target.files[0];
-    },
-    onUpload2(e) {
-      this.file2 = e.target.files[0];
-    },
-    onUpload3(e) {
-      this.file3 = e.target.files[0];
-    },
-    deleteFile(target) {
-      if (target == 'inputGroupFile01') {
-        this.file1 = '';
-      } else if (target == 'inputGroupFile02') {
-        this.file2 = '';
+    };
+
+    const onUpload = (e, target) => {
+      if (target == '1') {
+        file1.value = e.target.files[0];
+      } else if (target == '2') {
+        file2.value = e.target.files[0];
       } else {
-        this.file3 = '';
+        file3.value = e.target.files[0];
+      }
+    };
+
+    const deleteFile = (target) => {
+      if (target == 'inputGroupFile01') {
+        file1.value = '';
+      } else if (target == 'inputGroupFile02') {
+        file2.value = '';
+      } else {
+        file3.value = '';
       }
       document.getElementById(target).value = '';
-    },
-    handleRequire(target) {
+    };
+
+    const handleRequire = (target) => {
       if (target == 'processReason') {
-        if (this.processReason && this.processReason != '-2') {
-          this.processReasonMessage = '';
+        if (processReason.value && processReason.value != '-2') {
+          processReasonMessage.value = '';
         }
       } else if (target == 'operator') {
-        if (this.operator && this.operator != '-2') {
-          this.operatorMessage = '';
+        if (operator.value && operator.value != '-2') {
+          operatorMessage.value = '';
         }
       }
-    },
-    getSlashDate() {
+    };
+    const getSlashDate = () => {
       let tempDate = new Date();
       let yyyy = tempDate.getFullYear();
       let mm = tempDate.getMonth() + 1;
@@ -1309,7 +1347,85 @@ export default {
         dd = `0${dd}`;
       }
       return `${yyyy}/${mm}/${dd}`;
-    },
+    };
+
+    return {
+      timeValid,
+      timeRangeValid,
+      modalTimeValid,
+      isSearch,
+      isModalVisible1,
+      isModalVisible2,
+      responseMessage,
+      viewCheckBox,
+      viewApplyCheckBox,
+      isLoadingVisible,
+      category,
+      requestCategoryId,
+      categoryOptions,
+      currentMode,
+      caseIndexList,
+      form,
+      applyForm,
+      applyNo,
+      applyRole,
+      applyRoleMessage,
+      applyRoleOptions,
+      processReason,
+      processReasonMessage,
+      processReasonOptions,
+      operator,
+      operatorMessage,
+      operatorOptions,
+      startDate,
+      endDate,
+      processText,
+      file1,
+      file2,
+      file3,
+      paginationOptions,
+      columns,
+      rows,
+      exportRows,
+      totalRecords,
+      modalcolumns,
+      modalrows,
+      caseIds,
+      applyInitForm,
+      labels,
+      fields,
+      userInfo,
+      getCategoryList,
+      getDate,
+      generatorCSVname,
+      onSubmit,
+      generatorRule,
+      clearQuery,
+      onChangeCategory,
+      updateParams,
+      onPageChange,
+      onPerPageChange,
+      onSortChange,
+      transferFieldType,
+      loadItems,
+      handleView,
+      handleApply,
+      viewMainChange,
+      viewApplyMainChange,
+      viewChange,
+      viewApplyChange,
+      applyRoleChange,
+      showModal1,
+      closeModal1,
+      confirmModal1,
+      showModal2,
+      closeModal2,
+      confirmModal2,
+      onUpload,
+      deleteFile,
+      handleRequire,
+      getSlashDate,
+    };
   },
 };
 </script>

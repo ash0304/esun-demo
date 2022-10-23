@@ -239,6 +239,7 @@ authRequest.interceptors.response.use(
   },
   (error) => {
     store.dispatch('toggleLoading', false);
+    router.push({ name: 'Error500', query: { t: 0 } });
     return error.response;
   }
 );

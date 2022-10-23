@@ -14,18 +14,6 @@
           <span class="error-msg">{{ errors.account }}</span>
         </div>
       </div>
-      <!-- <div class="row mb-5">
-        <label for="password" class="col-form-label fs-5">密碼</label>
-        <div>
-          <Field
-            name="password"
-            type="password"
-            class="form-control"
-            v-model="password"
-          />
-          <span class="error-msg">{{ errors.password }}</span>
-        </div>
-      </div> -->
       <button type="submit" class="btn btn-primary btn-md w320">登入</button>
     </Form>
     <Teleport to="body">
@@ -74,75 +62,76 @@
 </style>
 
 <script>
+import { ref } from 'vue';
 import Loading from '@/components/Loading.vue';
 import Modal from '@/components/Modal.vue';
 import { Form, Field } from 'vee-validate';
-
 import { doPost } from '@/utilities/api';
 import store from '@/utilities/store';
+import { useRouter } from "vue-router";
 
 export default {
   name: 'Signin',
-  components: { Loading, Modal, Form, Field },
-  data() {
-    return {
-      isLoadingVisible: false,
-      account: '',
-      password: '!qaz2wsx',
-      showModal: false,
-      signinError: '',
-    };
+  components: {
+    Loading,
+    Modal,
+    Form,
+    Field,
   },
-  created() {
-    if (
-      process.env.VUE_APP_ENV == 'prod' ||
-      process.env.VUE_APP_ENV == 'uat' ||
-      process.env.VUE_APP_ENV == 'sit1'
-    ) {
-      this.$router.push({ name: 'Error403' });
-    }
-  },
-  methods: {
-    onSubmit() {
+  setup() {
+    const router = useRouter();
+    const isLoadingVisible = ref(false);
+    const account = ref('');
+    const showModal = ref(false);
+    const signinError = ref('');
+
+    // methods
+    const onSubmit = () => {
       localStorage.setItem('infoReady', false);
-      doPost('/Login/GetUserInfo', { Account: this.account }).then(
-        (response) => {
-          if (response) {
-            const {
-              account,
-              pageList,
-              unitCode,
-              unitId,
-              unitName,
-              userCode,
-              userId,
-              userName,
-            } = response;
-            // 更新路由權限
-            store.dispatch('setRouteList', pageList);
-            // 設定使用者資料
-            const userInfo = {
-              account,
-              unitCode,
-              unitId,
-              unitName,
-              userCode,
-              userId,
-              userName,
-            };
-            store.dispatch('setUserInfo', userInfo);
-            store.dispatch('setIsCheckAuth', true);
-            // 設定token
-            localStorage.setItem('isLogin', true);
-            localStorage.setItem('infoReady', true);
-            this.$router.push({ name: 'Index' });
-          }
+      doPost('/Login/GetUserInfo', { Account: account }).then((response) => {
+        if (response) {
+          const {
+            account,
+            pageList,
+            unitCode,
+            unitId,
+            unitName,
+            userCode,
+            userId,
+            userName,
+          } = response;
+          // 更新路由權限
+          store.dispatch('setRouteList', pageList);
+          // 設定使用者資料
+          const userInfo = {
+            account,
+            unitCode,
+            unitId,
+            unitName,
+            userCode,
+            userId,
+            userName,
+          };
+          store.dispatch('setUserInfo', userInfo);
+          store.dispatch('setIsCheckAuth', true);
+          // 設定token
+          localStorage.setItem('isLogin', true);
+          localStorage.setItem('infoReady', true);
+          router.push({ name: 'Index' });
         }
-      );
-    },
-    closeModal() {
-      this.showModal = false;
-    },
+      });
+    };
+    const closeModal = () => {
+      showModal.value = false;
+    };
+    return {
+      isLoadingVisible,
+      account,
+      showModal,
+      signinError,
+      onSubmit,
+      closeModal,
+    };
   },
 };
 </script>

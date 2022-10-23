@@ -189,7 +189,7 @@
               }}</a>
               <label
                 class="input-group-text deleteFile mx-4"
-                @click="tempDelFile1"
+                @click="tempDelFile('file1')"
                 >刪除檔案</label
               >
             </div>
@@ -202,7 +202,7 @@
                 accept="image/jpeg,image/png,application/pdf"
                 class="form-control"
                 id="File1"
-                @change="onUpload1"
+                @change="onUpload($event, 'file1')"
               />
               <label class="input-group-text customFileUpload-btn" for="File1"
                 >上傳檔案</label
@@ -242,7 +242,7 @@
               }}</a>
               <label
                 class="input-group-text deleteFile mx-4"
-                @click="tempDelFile2"
+                @click="tempDelFile('file2')"
                 >刪除檔案</label
               >
             </div>
@@ -255,7 +255,7 @@
                 accept="image/jpeg,image/png,application/pdf"
                 class="form-control"
                 id="File2"
-                @change="onUpload2"
+                @change="onUpload($event, 'file2')"
               />
               <label class="input-group-text customFileUpload-btn" for="File2"
                 >上傳檔案</label
@@ -295,7 +295,7 @@
               }}</a>
               <label
                 class="input-group-text deleteFile mx-4"
-                @click="tempDelFile3"
+                @click="tempDelFile('file3')"
                 >刪除檔案</label
               >
             </div>
@@ -308,7 +308,7 @@
                 accept="image/jpeg,image/png,application/pdf"
                 class="form-control"
                 id="File3"
-                @change="onUpload3"
+                @change="onUpload($event, 'file3')"
               />
               <label class="input-group-text customFileUpload-btn" for="File3"
                 >上傳檔案</label
@@ -699,314 +699,278 @@ import * as datatable from '@/utilities/datatable';
 import { VueGoodTable } from 'vue-good-table-next';
 import Modal from '@/components/Modal.vue';
 import JsonCSV from '@/components/JsonCSV';
+import { onMounted, reactive, ref } from 'vue';
 
 import { generatorCSVname } from '@/utilities/time';
 import { doPost, doFilePost, doBlobFile } from '../../utilities/api';
+import { useRoute } from 'vue-router';
 
 export default {
   name: 'ApplyCasePage',
   components: { Form, Field, VueGoodTable, Modal, JsonCSV },
-  data() {
-    return {
-      // 當前操作狀態
-      currentButtonType: 0,
-      // 純意見彈窗
-      isModalVisible1: false,
-      // 意見+人員轉移
-      isModalVisible2: false,
-      transfer: '',
-      transferErrMsg: '',
-      transferText: '',
-      // 銷案確認彈窗
-      isModalVisible3: false,
-      comment: '',
-      // 提示訊息彈窗
-      isModalVisible4: false,
-      responseMessage: '',
-      // 意見紀錄(裝表格)彈窗
-      isModalVisible5: false,
-      applyCase: {},
-      applyStatusTransfer: {
-        0: '尚有案件處理中',
-        1: '全數調閱案件已結案',
-        2: '銷案',
+  setup() {
+    const route = useRoute();
+    // 當前操作狀態
+    const currentButtonType = ref(0);
+    // 純意見彈窗
+    const isModalVisible1 = ref(false);
+    // 意見+人員轉移
+    const isModalVisible2 = ref(false);
+    const transfer = ref('');
+    const transferErrMsg = ref('');
+    const transferText = ref('');
+    // 銷案確認彈窗
+    const isModalVisible3 = ref(false);
+    const comment = ref('');
+    // 提示訊息彈窗
+    const isModalVisible4 = ref(false);
+    const responseMessage = ref('');
+    // 意見紀錄(裝表格)彈窗
+    const isModalVisible5 = ref(false);
+    const applyCase = reactive({});
+    const applyStatusTransfer = reactive({
+      0: '尚有案件處理中',
+      1: '全數調閱案件已結案',
+      2: '銷案',
+    });
+    const caseStatusTransfer = reactive({
+      0: '覆核中',
+      1: '待取件',
+      2: '分派中',
+      3: '選檔中',
+      4: '已通過',
+      5: '已婉拒',
+      6: '銷案',
+      7: '待處理',
+    });
+
+    const fileConfirmStatusTransfer = reactive({
+      0: '未確認',
+      1: '已完成勾選',
+      2: '無符合影像',
+    });
+
+    const statusTransfer = reactive({
+      0: '申請',
+      1: '退回',
+      2: '婉拒',
+      3: '放行',
+      4: '撤銷',
+      5: '取件',
+      6: '選檔',
+      7: '移轉',
+      8: '處理',
+    });
+
+    const startDate = ref('');
+    const defaultstartDate = ref('');
+    const endDate = ref('');
+    const defaultendDate = ref('');
+    const applyDescription = ref('');
+    const applyReason = ref(-2);
+    const applyReasonOptions = ref([]);
+    const transferOptions = ref([]);
+    const file1 = ref('');
+    const file2 = ref('');
+    const file3 = ref('');
+    const isFile1Update = ref(false);
+    const isFile2Update = ref(false);
+    const isFile3Update = ref(false);
+    const deleteFileIds = ref([]);
+    // 錯誤訊息
+    const startDateMessage = ref('');
+    const endDateMessage = ref('');
+    const applyReasonMessage = ref('');
+    const applyDescriptionMessage = ref('');
+    const caseId = ref(0);
+    // table
+    const columns = ref([
+      {
+        label: '',
+        field: 'CaseId',
+        hidden: true,
       },
-      caseStatusTransfer: {
-        0: '覆核中',
-        1: '待取件',
-        2: '分派中',
-        3: '選檔中',
-        4: '已通過',
-        5: '已婉拒',
-        6: '銷案',
-        7: '待處理',
+      {
+        label: '業務類別',
+        field: 'Category',
+        hidden: false,
+        width: '150px',
       },
-      fileConfirmStatusTransfer: {
-        0: '未確認',
-        1: '已完成勾選',
-        2: '無符合影像',
+      {
+        label: '案件編號',
+        field: 'CaseNo',
+        hidden: false,
+        width: '150px',
       },
-      statusTransfer: {
-        0: '申請',
-        1: '退回',
-        2: '婉拒',
-        3: '放行',
-        4: '撤銷',
-        5: '取件',
-        6: '選檔',
-        7: '移轉',
-        8: '處理',
+      {
+        label: '調閱期間',
+        field: 'Period',
+        hidden: false,
+        width: '150px',
       },
-      startDate: '',
-      defaultstartDate: '',
-      endDate: '',
-      defaultendDate: '',
-      applyDescription: '',
-      applyReason: -2,
-      applyReasonOptions: [],
-      transferOptions: [],
-      isFile1Update: false,
-      file1: '',
-      isFile2Update: false,
-      file2: '',
-      isFile3Update: false,
-      file3: '',
-      deleteFileIds: [],
-      // 錯誤訊息
-      startDateMessage: '',
-      endDateMessage: '',
-      applyReasonMessage: '',
-      applyDescriptionMessage: '',
-      caseId: 0,
-      // table
-      columns: [
-        {
-          label: '',
-          field: 'CaseId',
-          hidden: true,
-        },
-        {
-          label: '業務類別',
-          field: 'Category',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '案件編號',
-          field: 'CaseNo',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '調閱期間',
-          field: 'Period',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '處理單位',
-          field: 'Unit',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '處理人員',
-          field: 'User',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '意見紀錄',
-          field: 'Comments',
-          hidden: false,
-          sortable: false,
-          width: '150px',
-        },
-        {
-          label: '案件狀態',
-          field: 'CaseStatus',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '開啟影像處理',
-          field: 'AllowView',
-          hidden: false,
-          sortable: false,
-          width: '150px',
-        },
-        {
-          label: '影像確認狀態',
-          field: 'FileConfirmStatus',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '調閱申請單單號',
-          field: 'ApplyNo',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '區域中心',
-          field: 'BankingCenter',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '歸檔單位',
-          field: 'ArchiveUnit',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '交易經辦',
-          field: 'TraUser',
-          hidden: false,
-          width: '150px',
-        },
-        {
-          label: '交易日期',
-          field: 'TraDate',
-          hidden: false,
-          width: '150px',
-        },
-      ],
-      rows: [],
-      tempRows: [],
-      modalcolumns: [
-        {
-          label: '處理單位',
-          field: 'unit',
-          hidden: false,
-        },
-        {
-          label: '處理人員',
-          field: 'user',
-          hidden: false,
-        },
-        {
-          label: '意見',
-          field: 'comment',
-          hidden: false,
-        },
-        {
-          label: '處理狀態',
-          field: 'status',
-          hidden: false,
-        },
-        {
-          label: '處理時間',
-          field: 'dateTime',
-          hidden: false,
-        },
-      ],
-      modalrows: [],
-      paginationOptions: datatable.paginationOptions,
-      totalRecords: 0,
-      // csv
-      fields: [],
-      labels: [],
-      userInfo: {}
-    };
-  },
-  created(){
-    this.userInfo = JSON.parse(localStorage.getItem('userInfo'));
-  },
-  mounted() {
-    this.queryDetail();
-    this.loadItems();
-  },
-  methods: {
-    generatorCSVname,
-    queryDetail() {
+      {
+        label: '處理單位',
+        field: 'Unit',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '處理人員',
+        field: 'User',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '意見紀錄',
+        field: 'Comments',
+        hidden: false,
+        sortable: false,
+        width: '150px',
+      },
+      {
+        label: '案件狀態',
+        field: 'CaseStatus',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '開啟影像處理',
+        field: 'AllowView',
+        hidden: false,
+        sortable: false,
+        width: '150px',
+      },
+      {
+        label: '影像確認狀態',
+        field: 'FileConfirmStatus',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '調閱申請單單號',
+        field: 'ApplyNo',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '區域中心',
+        field: 'BankingCenter',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '歸檔單位',
+        field: 'ArchiveUnit',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '交易經辦',
+        field: 'TraUser',
+        hidden: false,
+        width: '150px',
+      },
+      {
+        label: '交易日期',
+        field: 'TraDate',
+        hidden: false,
+        width: '150px',
+      },
+    ]);
+    const rows = ref([]);
+    const tempRows = ref([]);
+    const modalcolumns = ref([
+      {
+        label: '處理單位',
+        field: 'unit',
+        hidden: false,
+      },
+      {
+        label: '處理人員',
+        field: 'user',
+        hidden: false,
+      },
+      {
+        label: '意見',
+        field: 'comment',
+        hidden: false,
+      },
+      {
+        label: '處理狀態',
+        field: 'status',
+        hidden: false,
+      },
+      {
+        label: '處理時間',
+        field: 'dateTime',
+        hidden: false,
+      },
+    ]);
+    const modalrows = ref([]);
+    const paginationOptions = reactive(datatable.paginationOptions);
+    const totalRecords = ref(0);
+    // csv
+    const fields = ref([]);
+    const labels = ref([]);
+    const userInfo = reactive({});
+
+    Object.assign(userInfo, JSON.parse(localStorage.getItem('userInfo')));
+
+    onMounted(() => {
+      queryDetail();
+      loadItems();
+    });
+
+    // methods
+    const queryDetail = () => {
       const passObj = {
         // localstorage
         GlobalUserId: localStorage.getItem('GlobalUserId')
           ? localStorage.getItem('GlobalUserId')
-          : this.userInfo.userId,
-        ApplyId: this.$route.query.id,
+          : userInfo.userId,
+        ApplyId: route.query.id,
       };
       doPost('/ApplyCase/QueryDetail', passObj).then((response) => {
-        this.applyCase = {};
+        Object.assign(applyCase, {});
         for (const key in response) {
-          this.applyCase[key] = response[key];
+          applyCase[key] = response[key];
         }
-        if (this.applyCase.caseStatus == 7) {
-          this.startDate = this.applyCase.applyStartDate.replaceAll('/', '-');
-          this.defaultstartDate = this.startDate;
-          this.endDate = this.applyCase.applyEndDate.replaceAll('/', '-');
-          this.defaultendDate = this.endDate;
-          this.applyDescription = this.applyCase.applyDescription;
+        if (applyCase.caseStatus == 7) {
+          startDate.value = applyCase.applyStartDate.replaceAll('/', '-');
+          defaultstartDate.value = startDate.value;
+          endDate.value = applyCase.applyEndDate.replaceAll('/', '-');
+          defaultendDate.value = endDate.value;
+          applyDescription.value = applyCase.applyDescription;
           // call api
           doPost('/ApplyCase/GetApplyReasonList', {
-            GlobalUserId: this.userInfo.userId,
+            GlobalUserId: userInfo.userId,
           }).then((response) => {
-            this.applyReasonOptions = response;
+            applyReasonOptions.value = response;
             // 代入api值
-            this.applyReason = this.applyReasonOptions.filter(
-              (item) => item.text == this.applyCase.applyReason
+            applyReason.value = applyReasonOptions.value.filter(
+              (item) => item.text == applyCase.applyReason
             )[0].id;
           });
         }
       });
-    },
-    // 檔案下載(暫定)
-    handleDown(id) {
-      const passObj = {
-        GlobalUserId: this.userInfo.userId,
-        Id: id,
-      };
-      doBlobFile('/ApplyCase/DownloadFile', passObj).then((response) => {
-        let a = document.createElement('a');
-        document.body.appendChild(a);
-        a.style = 'display: none';
-        let blob = new Blob([response.data], {
-          type: 'application/' + response.headers['content-type'],
-        });
-        let url = window.URL.createObjectURL(blob);
-        a.href = url;
-        a.download = decodeURIComponent(response.headers.filename);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-      });
-    },
+    };
+
+    const onPageChange = (params) => {
+      datatable.onPageChange(params, loadItems);
+    };
+    const onPerPageChange = (params) => {
+      datatable.onPerPageChange(params, loadItems);
+    };
+    const onSortChange = (params) => {
+      datatable.onSortChange(params, loadItems);
+    };
+
     // 轉大寫開頭屬性
-    capitalizeFirstLetter(string) {
+    const capitalizeFirstLetter = (string) => {
       return string.charAt(0).toUpperCase() + string.slice(1);
-    },
-    handleComments(row) {
-      this.modalrows = row.Comments.rows;
-      // 開表格
-      this.showModal5();
-    },
-    handleView(row) {
-      // 抓取id並設置當前案別
-      this.caseId = row.CaseId;
-      const passObj = {
-        Flag: 1002,
-        CaseIds: [this.caseId],
-        GlobalUserId: this.userInfo.userId,
-        ApplyRecordId: this.applyCase.id,
-      };
-      // do 檢視api
-      doPost('/Common/ActiveViewer', passObj).then((response) => {
-        if (response) {
-          window.open(response, '_blank');
-        }
-      });
-    },
-    onPageChange(params) {
-      datatable.onPageChange(params, this.loadItems);
-    },
-    onPerPageChange(params) {
-      datatable.onPerPageChange(params, this.loadItems);
-    },
-    onSortChange(params) {
-      datatable.onSortChange(params, this.loadItems);
-    },
-    loadItems(params) {
+    };
+
+    const loadItems = (params) => {
       // 這邊組成傳送參數(params + this.form)
       let passObj = {};
       const serverReq = {
@@ -1028,33 +992,31 @@ export default {
       // localstorage
       passObj.Data.GlobalUserId = localStorage.getItem('GlobalUserId')
         ? localStorage.getItem('GlobalUserId')
-        : this.userInfo.userId;
-      passObj.Data.ApplyId = this.$route.query.id;
+        : userInfo.userId;
+      passObj.Data.ApplyId = route.query.id;
       doPost('/ApplyCase/QueryDetailCase', passObj).then((response) => {
-        const { rows, totalRecords } = response;
-        this.totalRecords = totalRecords;
-        this.rows = [];
+        totalRecords.value = response.totalRecords;
+        rows.value = [];
         // 對資料做Object屬性開頭大寫處理
-        rows.forEach((item, index) => {
+        response.rows.forEach((item, index) => {
           const tempObj = {};
           for (const [key, value] of Object.entries(item)) {
             if (key == 'caseStatus') {
-              tempObj[this.capitalizeFirstLetter(key)] =
-                this.caseStatusTransfer[value];
+              tempObj[capitalizeFirstLetter(key)] = caseStatusTransfer[value];
             } else if (key == 'fileConfirmStatus') {
-              tempObj[this.capitalizeFirstLetter(key)] =
-                this.fileConfirmStatusTransfer[value];
+              tempObj[capitalizeFirstLetter(key)] =
+                fileConfirmStatusTransfer[value];
             } else {
-              tempObj[this.capitalizeFirstLetter(key)] = value;
+              tempObj[capitalizeFirstLetter(key)] = value;
             }
           }
-          this.rows[index] = tempObj;
+          rows.value[index] = tempObj;
         });
         // csv隱碼處理
-        this.tempRows = [];
+        tempRows.value = [];
         // deep copy
-        this.tempRows = JSON.parse(JSON.stringify(this.rows));
-        this.tempRows.forEach((item) => {
+        tempRows.value = JSON.parse(JSON.stringify(rows.value));
+        tempRows.value.forEach((item) => {
           const ObjKeys = Object.keys(item);
           ObjKeys.forEach((i, d) => {
             if (ObjKeys[d].includes('User')) {
@@ -1071,7 +1033,7 @@ export default {
           });
         });
         // csv setting處理
-        this.columns.forEach((item) => {
+        columns.value.forEach((item) => {
           if (
             item.field == 'CaseId' ||
             item.field == 'AllowView' ||
@@ -1079,171 +1041,222 @@ export default {
           ) {
             // do nothing
           } else {
-            this.fields.push(item.field);
-            this.labels[item.field] = item.label;
+            fields.value.push(item.field);
+            labels.value[item.field] = item.label;
           }
         });
       });
-    },
-    transferChange() {
-      if (this.transfer) {
-        this.transferErrMsg = '';
-        this.transferText = this.transferOptions.filter(
-          (item) => item.id == this.transfer
+    };
+
+    // 檔案下載(暫定)
+    const handleDown = (id) => {
+      const passObj = {
+        GlobalUserId: userInfo.userId,
+        Id: id,
+      };
+      doBlobFile('/ApplyCase/DownloadFile', passObj).then((response) => {
+        let a = document.createElement('a');
+        document.body.appendChild(a);
+        a.style = 'display: none';
+        let blob = new Blob([response.data], {
+          type: 'application/' + response.headers['content-type'],
+        });
+        let url = window.URL.createObjectURL(blob);
+        a.href = url;
+        a.download = decodeURIComponent(response.headers.filename);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      });
+    };
+
+    const handleComments = (row) => {
+      modalrows.value = row.Comments.rows;
+      // 開表格
+      showModal5();
+    };
+    const handleView = (row) => {
+      // 抓取id並設置當前案別
+      caseId.value = row.CaseId;
+      const passObj = {
+        Flag: 1002,
+        CaseIds: [caseId.value],
+        GlobalUserId: userInfo.userId,
+        ApplyRecordId: applyCase.id,
+      };
+      // do 檢視api
+      doPost('/Common/ActiveViewer', passObj).then((response) => {
+        if (response) {
+          window.open(response, '_blank');
+        }
+      });
+    };
+
+    const transferChange = () => {
+      if (transfer.value) {
+        transferErrMsg.value = '';
+        transferText.value = transferOptions.value.filter(
+          (item) => item.id == transfer.value
         )[0].text;
       }
-    },
+    };
+
     // 婉拒申請
-    rejectApply() {
-      this.currentButtonType = 0;
-      this.showModal1();
-    },
+    const rejectApply = () => {
+      currentButtonType.value = 0;
+      showModal1();
+    };
     // 退回
-    returnCase() {
-      this.currentButtonType = 1;
-      this.showModal1();
-    },
+    const returnCase = () => {
+      currentButtonType.value = 1;
+      showModal1();
+    };
     // 銷案處理
-    cancelCase() {
-      this.currentButtonType = 2;
-      this.showModal3();
-    },
+    const cancelCase = () => {
+      currentButtonType.value = 2;
+      showModal3();
+    };
     // 確認放行
-    releaseCase() {
-      this.currentButtonType = 3;
-      this.showModal1();
-    },
+    const releaseCase = () => {
+      currentButtonType.value = 3;
+      showModal1();
+    };
     // 取件
-    pickUpCase() {
-      this.currentButtonType = 4;
-      this.showModal1();
-    },
+    const pickUpCase = () => {
+      currentButtonType.value = 4;
+      showModal1();
+    };
+
     // 傳送下一關
-    passNextLevel() {
-      if (this.applyCase.caseStatus == 7) {
-        if (!this.startDate) {
-          this.startDateMessage = '請填寫此欄位';
+    const passNextLevel = () => {
+      if (applyCase.caseStatus == 7) {
+        if (!startDate.value) {
+          startDateMessage.value = '請填寫此欄位';
           return;
         }
-        if (!this.endDate) {
-          this.endDateMessage = '請填寫此欄位';
+        if (!endDate.value) {
+          endDateMessage.value = '請填寫此欄位';
           return;
         }
-        if (!this.applyReason || this.applyReason == '-2') {
-          this.applyReasonMessage = '請填寫此欄位';
+        if (!applyReason.value || applyReason.value == '-2') {
+          applyReasonMessage.value = '請填寫此欄位';
           return;
         }
-        if (!this.applyDescription) {
-          this.applyDescriptionMessage = '請填寫此欄位';
+        if (!applyDescription.value) {
+          applyDescriptionMessage.value = '請填寫此欄位';
           return;
         }
       }
-      this.currentButtonType = 5;
-      this.showModal2();
-    },
+      currentButtonType.value = 5;
+      showModal2();
+    };
     // 處理權轉移
-    rightTransfer() {
-      this.currentButtonType = 6;
-      this.showModal2();
-    },
-    showModal1() {
-      this.isModalVisible1 = true;
-    },
-    closeModal1() {
-      this.isModalVisible1 = false;
-      this.comment = '';
-    },
-    confirmModal1() {
+    const rightTransfer = () => {
+      currentButtonType.value = 6;
+      showModal2();
+    };
+
+    const showModal1 = () => {
+      isModalVisible1.value = true;
+    };
+    const closeModal1 = () => {
+      isModalVisible1.value = false;
+      comment.value = '';
+    };
+
+    const confirmModal1 = () => {
       const passObj = {
-        GlobalUserId: this.userInfo.userId,
-        ApplyId: this.applyCase.id,
-        ButtonType: this.currentButtonType,
+        GlobalUserId: userInfo.userId,
+        ApplyId: applyCase.id,
+        ButtonType: currentButtonType.value,
         NextOperatorUserId: null,
-        Comment: this.comment,
-        ArchiveUnitId: this.applyCase.archiveUnitId,
+        Comment: comment.value,
+        ArchiveUnitId: applyCase.archiveUnitId,
       };
       doPost('/ApplyCase/AddProcessDetail', passObj).then((response) => {
         if (response) {
-          switch (this.currentButtonType) {
+          switch (currentButtonType.value) {
             case 0:
-              this.responseMessage = `已婉拒申請單!`;
+              responseMessage.value = `已婉拒申請單!`;
               break;
             case 1:
-              this.responseMessage = `案件已退回給${this.applyCase.previousOperatorUser}處理`;
+              responseMessage.value = `案件已退回給${applyCase.previousOperatorUser}處理`;
               break;
             case 3:
-              this.responseMessage =
-                this.userInfo.unitId == this.applyCase.applyUnitId
+              responseMessage.value =
+                userInfo.unitId == applyCase.applyUnitId
                   ? `案件已完成放行!`
                   : `已放行申請單`;
               break;
             case 4:
-              this.responseMessage = '取件成功!';
+              responseMessage.value = '取件成功!';
               break;
             default:
-              this.responseMessage = ``;
+              responseMessage.value = ``;
           }
           // 清除意見框
-          this.comment = '';
-          this.showModal4();
+          comment.value = '';
+          showModal4();
         }
-        this.isModalVisible1 = false;
+        isModalVisible1.value = false;
       });
-    },
-    showModal2() {
-      this.isModalVisible2 = true;
+    };
+
+    const showModal2 = () => {
+      isModalVisible2.value = true;
       const passObj = {
-        GlobalUserId: this.userInfo.userId,
-        ApplyId: this.applyCase.id,
+        GlobalUserId: userInfo.userId,
+        ApplyId: applyCase.id,
         Flag: 1,
-        HierarchyId: this.applyCase.hierarchyId,
-        CaseStatus: this.applyCase.caseStatus,
-        ArchiveUnitId: this.applyCase.archiveUnitId,
-        ButtonType: this.currentButtonType,
+        HierarchyId: applyCase.hierarchyId,
+        CaseStatus: applyCase.caseStatus,
+        ArchiveUnitId: applyCase.archiveUnitId,
+        ButtonType: currentButtonType.value,
       };
       doPost('/ApplyCase/GetOperatorList', passObj).then((response) => {
-        this.transferOptions = response;
+        transferOptions.value = response;
       });
-    },
-    closeModal2() {
-      this.isModalVisible2 = false;
-      this.comment = '';
-      this.transfer = '';
-    },
-    confirmModal2() {
-      if (!this.transfer) {
-        this.transferErrMsg = '請填寫此欄位';
+    };
+    const closeModal2 = () => {
+      isModalVisible2.value = false;
+      comment.value = '';
+      transfer.value = '';
+    };
+
+    const confirmModal2 = () => {
+      if (!transfer.value) {
+        transferErrMsg.value = '請填寫此欄位';
         return;
       }
-      if (this.currentButtonType == 5 && this.applyCase.caseStatus == 7) {
+      if (currentButtonType.value == 5 && applyCase.caseStatus == 7) {
         let formData = new FormData();
-        formData.append('GlobalUserId', this.userInfo.userId);
-        formData.append('ApplyId', this.applyCase.id);
-        formData.append('ApplyStartDate', this.startDate);
-        formData.append('ApplyEndDate', this.endDate);
-        formData.append('ApplyReasonId', this.applyReason);
-        formData.append('ApplyDescription', this.applyDescription);
-        formData.append('Files1', this.file1);
-        formData.append('Files2', this.file2);
-        formData.append('Files3', this.file3);
-        this.deleteFileIds.forEach((item, index) => {
+        formData.append('GlobalUserId', userInfo.userId);
+        formData.append('ApplyId', applyCase.id);
+        formData.append('ApplyStartDate', startDate.value);
+        formData.append('ApplyEndDate', endDate.value);
+        formData.append('ApplyReasonId', applyReason.value);
+        formData.append('ApplyDescription', applyDescription.value);
+        formData.append('Files1', file1.value);
+        formData.append('Files2', file2.value);
+        formData.append('Files3', file3.value);
+        deleteFileIds.value.forEach((item, index) => {
           formData.append(`DeleteFileIds[${index}]`, item);
         });
         // formData.append('DeleteFileIds', this.deleteFileIds.join());
         doFilePost('/ApplyCase/EditApply', formData).then((response) => {
           if (response) {
             const passObj = {
-              GlobalUserId: this.userInfo.userId,
-              ApplyId: this.applyCase.id,
-              ButtonType: this.currentButtonType,
-              NextOperatorUserId: this.transfer,
-              Comment: this.comment,
-              ArchiveUnitId: this.applyCase.archiveUnitId,
+              GlobalUserId: userInfo.userId,
+              ApplyId: applyCase.id,
+              ButtonType: currentButtonType.value,
+              NextOperatorUserId: transfer.value,
+              Comment: comment.value,
+              ArchiveUnitId: applyCase.archiveUnitId,
             };
             doPost('/ApplyCase/AddProcessDetail', passObj).then((response) => {
               if (response) {
-                this.responseMessage = `案件已傳送予${this.transferText}處理`;
-                this.showModal4();
+                responseMessage.value = `案件已傳送予${transferText.value}處理`;
+                showModal4();
               }
               this.isModalVisible2 = false;
             });
@@ -1251,134 +1264,222 @@ export default {
         });
       } else {
         const passObj = {
-          GlobalUserId: this.userInfo.userId,
-          ApplyId: this.applyCase.id,
-          ButtonType: this.currentButtonType,
-          NextOperatorUserId: this.transfer,
-          Comment: this.comment,
-          ArchiveUnitId: this.applyCase.archiveUnitId,
+          GlobalUserId: userInfo.userId,
+          ApplyId: applyCase.id,
+          ButtonType: currentButtonType.value,
+          NextOperatorUserId: transfer.value,
+          Comment: comment.value,
+          ArchiveUnitId: applyCase.archiveUnitId,
         };
         doPost('/ApplyCase/AddProcessDetail', passObj).then((response) => {
           if (response) {
-            if (this.currentButtonType == 5) {
-              if (
-                this.applyCase.caseStatus == 2 ||
-                this.applyCase.caseStatus == 3
-              ) {
-                this.responseMessage = `案件已傳送予${this.transferText}處理`;
+            if (currentButtonType.value == 5) {
+              if (applyCase.caseStatus == 2 || applyCase.caseStatus == 3) {
+                responseMessage.value = `案件已傳送予${transferText.value}處理`;
               }
-            } else if (this.currentButtonType == 6) {
+            } else if (currentButtonType.value == 6) {
               if (
-                this.applyCase.caseStatus == 0 ||
-                this.applyCase.caseStatus == 2 ||
-                this.applyCase.caseStatus == 3
+                applyCase.caseStatus == 0 ||
+                applyCase.caseStatus == 2 ||
+                applyCase.caseStatus == 3
               ) {
-                this.responseMessage = `案件已移轉予${this.transferText}處理`;
+                responseMessage.value = `案件已移轉予${transferText.value}處理`;
               }
             }
-            this.showModal4();
+            showModal4();
           }
-          this.isModalVisible2 = false;
+          isModalVisible2.value = false;
         });
       }
-    },
-    showModal3() {
-      this.isModalVisible3 = true;
-    },
-    closeModal3() {
-      this.isModalVisible3 = false;
-    },
-    confirmModal3() {
+    };
+
+    const showModal3 = () => {
+      isModalVisible3.value = true;
+    };
+    const closeModal3 = () => {
+      isModalVisible3.value = false;
+    };
+
+    const confirmModal3 = () => {
       const passObj = {
-        GlobalUserId: this.userInfo.userId,
-        ApplyId: this.applyCase.id,
-        ButtonType: this.currentButtonType,
+        GlobalUserId: userInfo.userId,
+        ApplyId: applyCase.id,
+        ButtonType: currentButtonType.value,
         NextOperatorUserId: null,
-        Comment: this.comment,
-        ArchiveUnitId: this.applyCase.archiveUnitId,
+        Comment: comment.value,
+        ArchiveUnitId: applyCase.archiveUnitId,
       };
       doPost('/ApplyCase/AddProcessDetail', passObj).then((response) => {
         if (response) {
-          this.responseMessage = `已完成銷案!`;
-          this.showModal4();
+          responseMessage.value = `已完成銷案!`;
+          showModal4();
         }
-        this.isModalVisible3 = false;
+        isModalVisible3.value = false;
       });
-    },
+    };
+
     // 操作結果彈窗處理
-    showModal4() {
-      this.isModalVisible4 = true;
-    },
-    closeModal4() {
-      this.isModalVisible4 = false;
-    },
-    confirmModal4() {
+    const showModal4 = () => {
+      isModalVisible4.value = true;
+    };
+    const closeModal4 = () => {
+      isModalVisible4.value = false;
+    };
+    const confirmModal4 = () => {
       // do something and close
       setTimeout(() => {
-        this.isModalVisible4 = false;
+        isModalVisible4.value = false;
         // do call back?
-        this.queryDetail();
-        this.loadItems();
+        queryDetail();
+        loadItems();
       }, 500);
-    },
-    showModal5() {
-      this.isModalVisible5 = true;
-    },
-    closeModal5() {
-      this.isModalVisible5 = false;
-    },
+    };
+    const showModal5 = () => {
+      isModalVisible5.value = true;
+    };
+    const closeModal5 = () => {
+      isModalVisible5.value = false;
+    };
+
     // 必填錯誤訊息處理
-    handleRequire(target) {
+    const handleRequire = (target) => {
       if (target == 'startDate') {
-        if (this.startDate) {
-          this.startDateMessage = '';
+        if (startDate.value) {
+          startDateMessage.value = '';
         }
       } else if (target == 'endDate') {
-        if (this.endDate) {
-          this.endDateMessage = '';
+        if (endDate.value) {
+          endDateMessage.value = '';
         }
       } else if (target == 'applyReason') {
-        if (this.applyReason && this.applyReason != '-2') {
-          this.applyReasonMessage = '';
+        if (applyReason.value && applyReason.value != '-2') {
+          applyReasonMessage.value = '';
         }
       } else if (target == 'applyDescription') {
-        if (this.applyDescription) {
-          this.applyDescriptionMessage = '';
+        if (applyDescription.value) {
+          applyDescriptionMessage.value = '';
         }
       }
-    },
-    // 文件處理
-    onUpload1(e) {
-      this.file1 = e.target.files[0];
-    },
-    onUpload2(e) {
-      this.file2 = e.target.files[0];
-    },
-    onUpload3(e) {
-      this.file3 = e.target.files[0];
-    },
-    tempDelFile1() {
-      this.deleteFileIds.push(this.applyCase.file1.id);
-      this.isFile1Update = !this.isFile1Update;
-    },
-    tempDelFile2() {
-      this.deleteFileIds.push(this.applyCase.file2.id);
-      this.isFile2Update = !this.isFile2Update;
-    },
-    tempDelFile3() {
-      this.deleteFileIds.push(this.applyCase.file3.id);
-      this.isFile3Update = !this.isFile3Update;
-    },
-    deleteFile(target) {
-      if (target == 'File1') {
-        this.file1 = '';
-      } else if (target == 'File2') {
-        this.file2 = '';
+    };
+
+    const onUpload = (e, target) => {
+      if (target == 'file1') {
+        file1.value = e.target.files[0];
+      } else if (target == 'file2') {
+        file2.value = e.target.files[0];
       } else {
-        this.file3 = '';
+        file3.value = e.target.files[0];
+      }
+    };
+
+    const tempDelFile = (target) => {
+      if (target == 'file1') {
+        deleteFileIds.value.push(applyCase.file1.id);
+        isFile1Update.value = !isFile1Update.value;
+      } else if (target == 'file2') {
+        deleteFileIds.value.push(applyCase.file2.id);
+        isFile2Update.value = !isFile2Update.value;
+      } else {
+        deleteFileIds.value.push(applyCase.file3.id);
+        isFile3Update.value = !isFile3Update.value;
+      }
+    };
+
+    const deleteFile = (target) => {
+      if (target == 'File1') {
+        file1.value = '';
+      } else if (target == 'File2') {
+        file2.value = '';
+      } else {
+        file3.value = '';
       }
       document.getElementById(target).value = '';
-    },
+    };
+
+    return {
+      currentButtonType,
+      isModalVisible1,
+      isModalVisible2,
+      transfer,
+      transferErrMsg,
+      transferText,
+      isModalVisible3,
+      comment,
+      isModalVisible4,
+      responseMessage,
+      isModalVisible5,
+      applyCase,
+      applyStatusTransfer,
+      caseStatusTransfer,
+      fileConfirmStatusTransfer,
+      statusTransfer,
+      startDate,
+      defaultstartDate,
+      endDate,
+      defaultendDate,
+      applyDescription,
+      applyReason,
+      applyReasonOptions,
+      transferOptions,
+      file1,
+      file2,
+      file3,
+      isFile1Update,
+      isFile2Update,
+      isFile3Update,
+      deleteFileIds,
+      startDateMessage,
+      endDateMessage,
+      applyReasonMessage,
+      applyDescriptionMessage,
+      caseId,
+      columns,
+      rows,
+      tempRows,
+      modalcolumns,
+      modalrows,
+      paginationOptions,
+      totalRecords,
+      fields,
+      labels,
+      userInfo,
+      generatorCSVname,
+      queryDetail,
+      onPageChange,
+      onPerPageChange,
+      onSortChange,
+      capitalizeFirstLetter,
+      loadItems,
+      handleDown,
+      handleComments,
+      handleView,
+      transferChange,
+      rejectApply,
+      returnCase,
+      cancelCase,
+      releaseCase,
+      pickUpCase,
+      passNextLevel,
+      rightTransfer,
+      showModal1,
+      closeModal1,
+      confirmModal1,
+      showModal2,
+      closeModal2,
+      confirmModal2,
+      showModal3,
+      closeModal3,
+      confirmModal3,
+      showModal4,
+      closeModal4,
+      confirmModal4,
+      showModal5,
+      closeModal5,
+      handleRequire,
+      onUpload,
+      tempDelFile,
+      deleteFile,
+    };
   },
 };
 </script>

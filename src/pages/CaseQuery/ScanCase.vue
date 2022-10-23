@@ -1,6 +1,6 @@
 <template>
   <div class="mt-4 px-4">
-    <Form ref="form" @submit="onSubmit" v-slot="{ errors }">
+    <Form ref="myform" @submit="onSubmit" v-slot="{ errors }">
       <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
           <li class="breadcrumb-item">案件一覽表查詢</li>
@@ -463,75 +463,91 @@ import * as datatable from '@/utilities/datatable';
 
 import { getDate } from '@/utilities/time';
 import { generatorCSVname } from '@/utilities/time';
+import { onMounted, reactive, ref } from 'vue';
 
 import store from '@/utilities/store';
 import { doPost } from '@/utilities/api';
+import { useRoute } from 'vue-router';
 
 export default {
   name: 'ScanCase',
   components: { Field, Form, Select2, VueGoodTable, Modal, JsonCSV },
-  data() {
-    return {
-      // 動態索引是否處理完畢
-      done: false,
-      // 是否存在flag
-      isFlag: false,
-      // 動態資料是否完成?
-      isDataBack: false,
-      // 結束時間是否早於起始判定
-      timeValid: true,
-      // 時間間隔是否大於30日
-      timeRangeValid: true,
-      // 第一次搜尋
-      isSearch: false,
-      flag: 901,
-      // 處理權彈窗
-      isModalVisible1: false,
-      // 是否刪除彈窗
-      isModalVisible2: false,
-      // api結果彈窗
-      isModalVisible3: false,
-      category: -2,
-      categoryOptions: [],
-      caseIndexList: [],
-      form: [],
-      status: -1,
-      paginationOptions: datatable.paginationOptions,
-      columns: [],
-      rows: [],
-      exportRows: [],
-      totalRecords: 0,
-      statusTransfer: {
-        0: '待取件',
-        1: '處理中',
-        2: '已歸檔',
-      },
-      transfer: -2,
-      transferErrMsg: '',
-      transferOptions: [],
-      caseId: 0,
-      responseMessage: '',
-      // csv匯出設定
-      labels: {},
-      fields: [],
-      userInfo: {},
-      counter: 0,
+  setup() {
+    const route = useRoute();
+    const myform = ref('');
+    // 動態索引是否處理完畢
+    const done = ref(false);
+    // 是否存在flag
+    const isFlag = ref(false);
+    // 動態資料是否完成?
+    const isDataBack = ref(false);
+    // 結束時間是否早於起始判定
+    const timeValid = ref(true);
+    // 時間間隔是否大於30日
+    const timeRangeValid = ref(true);
+    // 第一次搜尋
+    const isSearch = ref(false);
+    const flag = ref(901);
+    // 處理權彈窗
+    const isModalVisible1 = ref(false);
+    // 是否刪除彈窗
+    const isModalVisible2 = ref(false);
+    // api結果彈窗
+    const isModalVisible3 = ref(false);
+    const category = ref(-2);
+    const categoryOptions = ref([]);
+    const caseIndexList = ref([]);
+    const form = ref([]);
+    const status = ref(-1);
+    // table
+    const paginationOptions = reactive(datatable.paginationOptions);
+    const columns = ref([]);
+    const rows = ref([]);
+    const exportRows = ref([]);
+    const totalRecords = ref(0);
+    const statusTransfer = reactive({
+      0: '待取件',
+      1: '處理中',
+      2: '已歸檔',
+    });
+    const transfer = ref(-2);
+    const transferErrMsg = ref('');
+    const transferOptions = ref([]);
+    const caseId = ref(0);
+    const responseMessage = ref('');
+    // csv匯出設定
+    const labels = reactive({});
+    const fields = ref([]);
+    const userInfo = reactive({});
+    const counter = ref(0);
+
+    Object.assign(userInfo, JSON.parse(localStorage.getItem('userInfo')));
+
+    onMounted(() => {
+      if (route.query.Flag) {
+        isFlag.value = true;
+        getCategoryList();
+      }
+    });
+
+    const getCategoryList = () => {
+      doPost('/Common/GetCategoryList', {
+        Flag: 901,
+        GlobalUserId: userInfo.userId,
+      }).then((response) => {
+        categoryOptions.value = response;
+        // 如果從公告導向過來
+        if (route.query.Flag && counter.value < 1) {
+          category.value = route.query.Category;
+          onChangeCategory();
+        } else {
+          onChangeCategory();
+        }
+      });
     };
-  },
-  created() {
-    this.userInfo = JSON.parse(localStorage.getItem('userInfo'));
-  },
-  mounted() {
-    if (this.$route.query.Flag) {
-      this.isFlag = true;
-      this.getCategoryList();
-    }
-  },
-  methods: {
-    getDate,
-    generatorCSVname,
-    bankingCenterChange(e) {
-      this.form.forEach((item) => {
+
+    const bankingCenterChange = (e) => {
+      form.value.forEach((item) => {
         if (item.code == 'ArchiveUnit') {
           item.value = [];
           item.options = item.dataSource.filter(
@@ -539,83 +555,73 @@ export default {
           );
         }
       });
-    },
-    onSubmit() {
-      this.loadItems();
-    },
-    generatorRule(index) {
-      if (this.form[index]?.isRequired) {
-        if (Array.isArray(this.form[index]?.value)) {
-          if (!this.form[index]?.value.length) {
+    };
+
+    const onSubmit = () => {
+      loadItems();
+    };
+
+    // 測試規則
+    const generatorRule = (index) => {
+      if (form.value[index]?.isRequired) {
+        if (Array.isArray(form.value[index]?.value)) {
+          if (!form.value[index]?.value.length) {
             return '請填寫此欄位';
           }
         } else {
-          if (this.form[index]?.value == '-2' || !this.form[index]?.value) {
+          if (form.value[index]?.value == '-2' || !form.value[index]?.value) {
             return '請填寫此欄位';
           }
         }
       }
-      if (this.form[index]?.regexRule) {
-        if (Array.isArray(this.form[index]?.value)) {
-          if (!this.form[index]?.value.length) {
+      if (form.value[index]?.regexRule) {
+        if (Array.isArray(form.value[index]?.value)) {
+          if (!form.value[index]?.value.length) {
             return true;
           }
         } else {
-          if (this.form[index]?.value == '-2' || !this.form[index]?.value) {
+          if (form.value[index]?.value == '-2' || !form.value[index]?.value) {
             return true;
           }
         }
-        const regex = new RegExp(this.form[index]?.regexRule);
-        if (!regex.test(this.form[index]?.value)) {
+        const regex = new RegExp(form.value[index]?.regexRule);
+        if (!regex.test(form.value[index]?.value)) {
           return '請修改此欄位格式';
         }
       }
       return true;
-    },
+    };
+
     // 新處理人員變動
-    transferChange() {
-      if (this.transfer && this.transfer != '-2') {
-        this.transferErrMsg = '';
+    const transferChange = () => {
+      if (transfer.value && transfer.value != '-2') {
+        transferErrMsg.value = '';
       }
-    },
-    clearQuery() {
+    };
+
+    const clearQuery = () => {
       // clear
-      this.category = -2;
-      this.caseIndexList = [];
-      this.form = [];
-      this.rows = [];
-      this.status = -1;
-      this.$refs.form.resetForm();
-    },
-    // 取得業務類別
-    getCategoryList() {
-      doPost('/Common/GetCategoryList', {
-        Flag: 901,
-        GlobalUserId: this.userInfo.userId,
-      }).then((response) => {
-        this.categoryOptions = response;
-        // 如果從公告導向過來
-        if (this.$route.query.Flag && this.counter < 1) {
-          this.category = this.$route.query.Category;
-          this.onChangeCategory();
-        } else {
-          this.onChangeCategory();
-        }
-      });
-    },
+      category.value = -2;
+      caseIndexList.value = [];
+      form.value = [];
+      rows.value = [];
+      status.value = -1;
+      myform.value.resetForm();
+    };
+
     // 選擇業務類別時觸發
-    onChangeCategory() {
+    const onChangeCategory = () => {
       // 重選選項先清空陣列避免重複欄位
-      this.done = false;
-      this.form = [];
+      done.value = false;
+      form.value = [];
       // 根據選擇業務類別撈取索引
       doPost('/Common/GetCaseIndexListByCategory', {
-        Category: this.category,
-        GlobalUserId: this.userInfo.userId,
+        Category: category.value,
+        GlobalUserId: userInfo.userId,
         Flag: 901,
       }).then((response) => {
-        this.caseIndexList = response;
-        this.caseIndexList.forEach((item) => {
+        caseIndexList.value = response;
+        caseIndexList.value.forEach((item) => {
           // 建立暫時存放表
           let formData = {
             ...item,
@@ -628,21 +634,21 @@ export default {
             formData.options = item.dataSource;
             formData.loaded = true;
 
-            let loaded = this.form.every((el) => el.loaded);
+            let loaded = form.value.every((el) => el.loaded);
             if (loaded) {
               //
             }
           }
           if (item.fieldType == 4) {
             // flag
-            if (this.$route.query.Flag && this.counter < 1) {
+            if (route.query.Flag && counter.value < 1) {
               formData.value = [];
             } else {
               formData.value = item.defaultValue.split(',');
             }
           } else {
             // flag
-            if (this.$route.query.Flag && this.counter < 1) {
+            if (route.query.Flag && counter.value < 1) {
               if (item.fieldType == 1) {
                 formData.value = '';
               } else if (item.fieldType == 2) {
@@ -657,7 +663,7 @@ export default {
           // 時間區間特殊處理
           if (item.fieldType === 5) {
             // flag存在時代空值
-            if (this.$route.query.Flag && this.counter < 1) {
+            if (route.query.Flag && counter.value < 1) {
               formData.code2 = `${item.code}2`;
               formData.value = '';
               formData.value2 = '';
@@ -669,53 +675,52 @@ export default {
           }
           // 公告首頁導向特殊處理
           if (item.code == 'ArchiveUnit') {
-            if (this.$route.query.ArchiveUnit && this.counter < 1) {
-              formData.value = this.$route.query.ArchiveUnit.split(',');
+            if (route.query.ArchiveUnit && counter.value < 1) {
+              formData.value = route.query.ArchiveUnit.split(',');
             }
           }
           // 公告首頁導向特殊處理
           if (item.code == 'WorkTeam') {
-            if (this.$route.query.WorkTeam && this.counter < 1) {
-              formData.value = this.$route.query.WorkTeam.split(',');
+            if (route.query.WorkTeam && counter.value < 1) {
+              formData.value = route.query.WorkTeam.split(',');
             }
           }
           // 公告首頁導向特殊處理103Flag
           if (item.code == 'ScanUser') {
-            if (this.$route.query.ScanUser && this.counter < 1) {
-              formData.value = [this.$route.query.ScanUser];
+            if (route.query.ScanUser && counter.value < 1) {
+              formData.value = [route.query.ScanUser];
             }
           }
-          this.form.push(formData);
+          form.value.push(formData);
           // 替換為主渲染變數
-          this.caseIndexList = this.form;
+          caseIndexList.value = form.value;
         });
-        this.done = true;
-        console.log('this.caseIndexList', this.caseIndexList);
-        if (this.$route.query.Flag && this.counter < 1) {
-          this.flag = parseInt(this.$route.query.Flag);
-          this.category = this.$route.query.Category;
-          if (
-            this.$route.query.Status === '0' ||
-            this.$route.query.Status === '1'
-          ) {
-            this.status = parseInt(this.$route.query.Status);
+        done.value = true;
+        console.log('this.caseIndexList', caseIndexList.value);
+        if (route.query.Flag && counter.value < 1) {
+          flag.value = parseInt(route.query.Flag);
+          category.value = route.query.Category;
+          if (route.query.Status === '0' || route.query.Status === '1') {
+            status.value = parseInt(route.query.Status);
           }
-          this.loadItems();
+          loadItems();
         }
       });
-    },
-    onPageChange(params) {
-      datatable.onPageChange(params, this.loadItems);
-    },
-    onPerPageChange(params) {
-      datatable.onPerPageChange(params, this.loadItems);
-    },
-    onSortChange(params) {
-      datatable.onSortChange(params, this.loadItems);
-    },
-    transferFieldType(item) {
+    };
+
+    const onPageChange = (params) => {
+      datatable.onPageChange(params, loadItems);
+    };
+    const onPerPageChange = (params) => {
+      datatable.onPerPageChange(params, loadItems);
+    };
+    const onSortChange = (params) => {
+      datatable.onSortChange(params, loadItems);
+    };
+
+    const transferFieldType = (item) => {
       if (item.fieldType == 5) {
-        if (this.$route.query.Flag) {
+        if (route.query.Flag) {
           return '';
         } else {
           return `${item.value},${item.value2}`;
@@ -725,23 +730,24 @@ export default {
       } else {
         return `${item.value}`;
       }
-    },
-    dataValue(target) {
+    };
+    const dataValue = (target) => {
       if (target === 'Start') {
-        if (this.isFlag && this.counter < 1) {
+        if (isFlag.value && counter.value < 1) {
           return '';
         } else {
-          return this.getDate(7);
+          return getDate(7);
         }
       } else {
-        if (this.isFlag && this.counter < 1) {
+        if (isFlag.value && counter.value < 1) {
           return '';
         } else {
-          return this.getDate();
+          return getDate();
         }
       }
-    },
-    loadItems(params) {
+    };
+
+    const loadItems = (params) => {
       // 這邊組成傳送參數(params + this.form)
       let passObj = {};
       const serverReq = {
@@ -760,15 +766,15 @@ export default {
           Data: {},
         };
       }
-      passObj.Data.Category = this.category;
-      passObj.Data.Status = this.status;
-      passObj.Data.GlobalUserId = this.userInfo.userId;
+      passObj.Data.Category = category.value;
+      passObj.Data.Status = status.value;
+      passObj.Data.GlobalUserId = userInfo.userId;
       passObj.Data.CaseIndexDataList = [];
-      passObj.Data.Flag = this.flag;
-      this.form.forEach((item) => {
+      passObj.Data.Flag = flag.value;
+      form.value.forEach((item) => {
         passObj.Data.CaseIndexDataList.push({
           Code: item.code,
-          Value: this.transferFieldType(item),
+          Value: transferFieldType(item),
         });
         // 判斷日期(起始<結束)
         if (item.fieldType == 5) {
@@ -776,53 +782,55 @@ export default {
           const de = new Date(item.value2);
           const timeLimit = 30 * 24 * 60 * 60 * 1000;
           if (ds > de) {
-            this.timeValid = false;
+            timeValid.value = false;
           } else {
-            this.timeValid = true;
+            timeValid.value = true;
           }
           if ((item.value == '' && item.value2 == '') || de - ds <= timeLimit) {
-            this.timeRangeValid = true;
+            timeRangeValid.value = true;
           } else {
-            this.timeRangeValid = false;
+            timeRangeValid.value = false;
           }
         }
       });
-      if (!this.timeValid) {
-        store.dispatch('setGlobalModalMessage', '結束日期不可小於開始日期');
+      if (!timeValid.value) {
+        store.dispatch(
+          'setGlobalModalMessage',
+          '結束日期不可小於開始日期'.value
+        );
         store.dispatch('toggleGlobalModal', true);
         return;
       }
-      if (!this.timeRangeValid) {
+      if (!timeRangeValid.value) {
         store.dispatch('setGlobalModalMessage', '查詢期間最大範圍為30日');
         store.dispatch('toggleGlobalModal', true);
         return;
       }
-      this.isSearch = true;
+      isSearch.value = true;
       doPost('/Case/Query', passObj).then((response) => {
-        const { column, rows, totalRecords } = response;
-        this.columns = column;
-        this.rows = [];
+        columns.value = response.column;
+        rows.value = [];
         // rows需要轉換
-        rows.forEach((item, index) => {
-          this.rows[index] = {};
-          this.exportRows[index] = {};
+        response.rows.forEach((item, index) => {
+          rows.value[index] = {};
+          exportRows.value[index] = {};
           item.forEach((inner) => {
-            Object.assign(this.rows[index], {
+            Object.assign(rows.value[index], {
               [inner.field]:
                 inner.field == 'Status'
-                  ? this.statusTransfer[inner.value]
+                  ? statusTransfer[inner.value]
                   : inner.value,
             });
-            Object.assign(this.exportRows[index], {
-              [inner.field]: this.mappingCsv(inner),
+            Object.assign(exportRows.value[index], {
+              [inner.field]: mappingCsv(inner),
             });
           });
         });
 
-        console.log('當前row資料型態', this.rows);
-        this.totalRecords = totalRecords;
+        console.log('當前row資料型態', rows.value);
+        totalRecords.value = response.totalRecords;
         // csv setting處理
-        this.columns.forEach((item) => {
+        columns.value.forEach((item) => {
           if (
             item.field == 'Id' ||
             item.field == 'Pickup' ||
@@ -831,46 +839,48 @@ export default {
           ) {
             // do nothing
           } else {
-            this.fields.push(item.field);
-            this.labels[item.field] = item.label;
+            fields.value.push(item.field);
+            labels[item.field] = item.label;
           }
         });
         // 從我的清單&單位清單待辦過來的確保搜出資料再counter+1
-        this.counter = 1;
+        counter.value = 1;
       });
-    },
-    mappingCsv(inner) {
+    };
+
+    const mappingCsv = (inner) => {
       if (inner.exportValue) {
         return inner.exportValue;
       } else {
         if (inner.field == 'Status') {
-          return this.statusTransfer[inner.value];
+          return statusTransfer[inner.value];
         } else {
           return inner.value;
         }
       }
-    },
+    };
     // 取件
-    handlePickUp(row) {
-      this.caseId = row.Id;
+    const handlePickUp = (row) => {
+      caseId.value = row.Id;
       const passObj = {
-        CaseIds: this.caseId,
-        GlobalUserId: this.userInfo.userId,
+        CaseIds: caseId.value,
+        GlobalUserId: userInfo.userId,
       };
       doPost('/Case/PickUp', passObj).then((response) => {
         if (response) {
           window.open(response, '_blank');
         }
       });
-    },
+    };
+
     // 開啟影像
-    handleView(row) {
+    const handleView = (row) => {
       // 抓取id並設置當前案別
-      this.caseId = row.Id;
+      caseId.value = row.Id;
       const passObj = {
         Flag: 901,
-        CaseIds: [this.caseId],
-        GlobalUserId: this.userInfo.userId,
+        CaseIds: [caseId.value],
+        GlobalUserId: userInfo.userId,
       };
       // do 檢視api
       doPost('/Common/ActiveViewer', passObj).then((response) => {
@@ -878,86 +888,149 @@ export default {
           window.open(response, '_blank');
         }
       });
-    },
+    };
     // 彈窗控制(處理權轉移)
-    showModal1(row) {
+    const showModal1 = (row) => {
       // 抓取id並設置當前案別
       this.caseId = row.Id;
       const passObj = {
         Flag: 901,
-        Category: this.category,
-        GlobalUserId: this.userInfo.userId,
-        UnitId: this.userInfo.unitId,
+        Category: category.value,
+        GlobalUserId: userInfo.userId,
+        UnitId: userInfo.unitId,
       };
       doPost('/Common/GetUnitUserList', passObj).then((response) => {
-        this.transferOptions = response;
-        this.isModalVisible1 = true;
+        transferOptions.value = response;
+        isModalVisible1.value = true;
       });
-    },
-    closeModal1() {
-      this.transfer = -2;
-      this.isModalVisible1 = false;
-    },
-    confirmModal1() {
-      if (!this.transfer || this.transfer == '-2') {
-        this.transferErrMsg = '請填寫此欄位';
+    };
+
+    const closeModal1 = () => {
+      transfer.value = -2;
+      isModalVisible1.value = false;
+    };
+    const confirmModal1 = () => {
+      if (!transfer.value || transfer.value == '-2') {
+        transferErrMsg.value = '請填寫此欄位';
         return;
       }
 
       const passObj = {
-        CaseId: this.caseId,
-        UserId: this.transfer,
-        GlobalUserId: this.userInfo.userId,
+        CaseId: caseId.value,
+        UserId: transfer.value,
+        GlobalUserId: userInfo.userId,
       };
-      const tempTarget = this.transferOptions.filter(
-        (item) => item.id == this.transfer
+      const tempTarget = transferOptions.value.filter(
+        (item) => item.id == transfer.value
       );
       const targetTransfer = tempTarget[0].text;
       doPost('/Case/AssignOperator', passObj).then((response) => {
         console.log(response);
         if (response) {
-          this.responseMessage = `案件已移轉予${targetTransfer}處理。`;
-          this.showModal3();
+          responseMessage.value = `案件已移轉予${targetTransfer}處理。`;
+          showModal3();
         }
-
-        this.isModalVisible1 = false;
+        isModalVisible1.value = false;
       });
-    },
-    showModal2(row) {
+    };
+
+    const showModal2 = (row) => {
       // 抓取id並設置當前案別
-      this.caseId = row.Id;
-      this.isModalVisible2 = true;
-    },
-    closeModal2() {
-      this.isModalVisible2 = false;
-    },
-    confirmModal2() {
+      caseId.value = row.Id;
+      isModalVisible2.value = true;
+    };
+    const closeModal2 = () => {
+      isModalVisible2.value = false;
+    };
+    const confirmModal2 = () => {
       const passObj = {
-        CaseId: this.caseId,
-        GlobalUserId: this.userInfo.userId,
+        CaseId: caseId.value,
+        GlobalUserId: userInfo.userId,
       };
       doPost('/Case/DeleteCase', passObj).then((response) => {
         if (response) {
-          this.responseMessage = `案件已於系統內刪除。`;
-          this.showModal3();
+          responseMessage.value = `案件已於系統內刪除。`;
+          showModal3();
         }
 
-        this.isModalVisible2 = false;
+        isModalVisible2.value = false;
       });
-    },
-    showModal3() {
-      this.isModalVisible3 = true;
-    },
-    closeModal3() {
-      this.isModalVisible3 = false;
-    },
-    confirmModal3() {
+    };
+    const showModal3 = () => {
+      isModalVisible3.value = true;
+    };
+    const closeModal3 = () => {
+      isModalVisible3.value = false;
+    };
+    const confirmModal3 = () => {
       // do something and close
       setTimeout(() => {
-        this.isModalVisible3 = false;
-        this.loadItems();
+        isModalVisible3.value = false;
+        loadItems();
       }, 100);
-    },
+    };
+
+    return {
+      route,
+      myform,
+      done,
+      isFlag,
+      isDataBack,
+      timeValid,
+      timeRangeValid,
+      isSearch,
+      flag,
+      isModalVisible1,
+      isModalVisible2,
+      isModalVisible3,
+      category,
+      categoryOptions,
+      caseIndexList,
+      form,
+      status,
+      paginationOptions,
+      columns,
+      rows,
+      exportRows,
+      totalRecords,
+      statusTransfer,
+      transfer,
+      transferErrMsg,
+      transferOptions,
+      caseId,
+      responseMessage,
+      labels,
+      fields,
+      userInfo,
+      counter,
+      getDate,
+      generatorCSVname,
+      getCategoryList,
+      bankingCenterChange,
+      onSubmit,
+      generatorRule,
+      transferChange,
+      clearQuery,
+      onChangeCategory,
+      onPageChange,
+      onPerPageChange,
+      onSortChange,
+      transferFieldType,
+      dataValue,
+      loadItems,
+      mappingCsv,
+      handlePickUp,
+      handleView,
+      showModal1,
+      closeModal1,
+      confirmModal1,
+      showModal2,
+      closeModal2,
+      confirmModal2,
+      showModal3,
+      closeModal3,
+      confirmModal3,
+    };
   },
 };
 </script>

@@ -25,24 +25,28 @@
 </template>
 
 <script>
-// import store from '@/utilities/store';
-// import { doPost } from '@/utilities/api';
+import { onMounted, reactive, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 export default {
-  data() {
-    return {
-      userInfo: {},
-      versionNo: '',
-    };
-  },
-  created() {
-    this.versionNo = process.env.VUE_APP_VERSION;
-  },
-  mounted() {
-    this.userInfo = JSON.parse(localStorage.getItem('userInfo'));
-  },
-  methods: {
-    showUserInfo() {
+  setup() {
+    const route = useRoute();
+    const router = useRouter();
+    const userInfo = reactive({});
+    const versionNo = ref('');
+    const showLogout = ref(false);
+
+    versionNo.value = process.env.VUE_APP_VERSION;
+    if (process.env.VUE_APP_ENV != 'prod') {
+      showLogout.value = true;
+    }
+
+    onMounted(() => {
+      Object.assign(userInfo, JSON.parse(localStorage.getItem('userInfo')));
+    });
+
+    // methods
+    const showUserInfo = () => {
       const hideMenuRoute = [
         '/',
         '/Signin',
@@ -50,21 +54,44 @@ export default {
         '/Error403',
         '/Error404',
       ];
-      return !hideMenuRoute.includes(this.$route.path);
-    },
-    showHeader() {
+      return !hideMenuRoute.includes(route.path);
+    };
+
+    const showHeader = () => {
       const hideHeaderRoute = ['/Signin'];
-      return !hideHeaderRoute.includes(this.$route.path);
-    },
-    logout() {
+      return !hideHeaderRoute.includes(route.path);
+    };
+
+    const logout = () => {
       localStorage.removeItem('isLogin');
       localStorage.removeItem('GlobalUserId');
       localStorage.removeItem('userInfo');
       localStorage.removeItem('pageList');
       localStorage.removeItem('versionno');
       localStorage.setItem('infoReady', false);
-      this.$router.push({ name: 'Signin' });
-    },
+
+      if (
+        process.env.VUE_APP_ENV == 'uat' ||
+        process.env.VUE_APP_ENV == 'sit' ||
+        process.env.VUE_APP_ENV == 'changingsit'
+      ) {
+        var logoutUrl = process.env.VUE_APP_WEB_BASE_URL + '/SignOut';
+        window.location.href = logoutUrl;
+      } else {
+        router.push({ name: 'Signin' });
+      }
+    };
+
+    return {
+      route,
+      router,
+      userInfo,
+      versionNo,
+      showLogout,
+      showUserInfo,
+      showHeader,
+      logout,
+    };
   },
 };
 </script>
