@@ -8,6 +8,15 @@
     <title>esun-demo</title>
   <link href="/esun-demo/js/app.js" rel="preload" as="script"><link href="/esun-demo/js/chunk-vendors.js" rel="preload" as="script"></head>
   <body>
+    <script>
+      (function(){
+        let redirect = sessionStorage.redirect;
+        delete sessionStorage.redirect;
+        if (redirect && redirect !== location.href) {
+          history.replaceState(null, null, redirect);
+        }
+      })();
+    </script>
     <noscript>
       <strong
         >We're sorry but esun-demo doesn't work
